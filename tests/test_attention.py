@@ -7,7 +7,7 @@ from sqlalchemy.pool import StaticPool
 from bp_agents.attention import AttentionManager
 from bp_agents.database import Base
 from bp_agents.dependencies import get_db
-from bp_agents.models import Agent, Execution, Prompt, PromptStatus, Response, Transaction
+from bp_agents.models import Agent, Execution, Prompt, PromptStatus, ResourceBundle, Response, Transaction
 from bp_agents.service import app
 
 
@@ -49,8 +49,9 @@ def client(db_session):
 
 def test_submit_prompt(db_session):
     agent = Agent(id="agent-1", credit_balance=100.0)
-    execution = Execution(id="exec-1", agent_id="agent-1")
-    db_session.add_all([agent, execution])
+    bundle = ResourceBundle(id="bundle-1", attention_share=0.1)
+    execution = Execution(id="exec-1", agent_id="agent-1", resource_bundle_id="bundle-1")
+    db_session.add_all([agent, bundle, execution])
     db_session.commit()
 
     prompt = AttentionManager.submit_prompt(
@@ -76,9 +77,10 @@ def test_submit_prompt(db_session):
 
 def test_get_pending_prompts_ordered_by_bid(db_session):
     agent = Agent(id="agent-1", credit_balance=100.0)
-    exec1 = Execution(id="exec-1", agent_id="agent-1")
-    exec2 = Execution(id="exec-2", agent_id="agent-1")
-    db_session.add_all([agent, exec1, exec2])
+    bundle = ResourceBundle(id="bundle-1", attention_share=0.1)
+    exec1 = Execution(id="exec-1", agent_id="agent-1", resource_bundle_id="bundle-1")
+    exec2 = Execution(id="exec-2", agent_id="agent-1", resource_bundle_id="bundle-1")
+    db_session.add_all([agent, bundle, exec1, exec2])
     db_session.commit()
 
     AttentionManager.submit_prompt(db_session, "agent-1", "exec-1", {"q": "low bid"}, 5.0)
@@ -95,8 +97,9 @@ def test_get_pending_prompts_ordered_by_bid(db_session):
 def test_reward_api(db_session, client):
     # Setup
     agent = Agent(id="agent-1", credit_balance=100.0)
-    execution = Execution(id="exec-1", agent_id="agent-1")
-    db_session.add_all([agent, execution])
+    bundle = ResourceBundle(id="bundle-1", attention_share=0.1)
+    execution = Execution(id="exec-1", agent_id="agent-1", resource_bundle_id="bundle-1")
+    db_session.add_all([agent, bundle, execution])
     db_session.commit()
 
     prompt = AttentionManager.submit_prompt(
@@ -151,8 +154,9 @@ def test_reward_api(db_session, client):
 
 def test_submit_prompt_insufficient_funds(db_session):
     agent = Agent(id="agent-1", credit_balance=5.0)
-    execution = Execution(id="exec-1", agent_id="agent-1")
-    db_session.add_all([agent, execution])
+    bundle = ResourceBundle(id="bundle-1", attention_share=0.1)
+    execution = Execution(id="exec-1", agent_id="agent-1", resource_bundle_id="bundle-1")
+    db_session.add_all([agent, bundle, execution])
     db_session.commit()
 
     with pytest.raises(ValueError, match="Insufficient funds"):
@@ -167,8 +171,9 @@ def test_submit_prompt_insufficient_funds(db_session):
 
 def test_reward_prompt_invalid_scores(db_session):
     agent = Agent(id="agent-1", credit_balance=100.0)
-    execution = Execution(id="exec-1", agent_id="agent-1")
-    db_session.add_all([agent, execution])
+    bundle = ResourceBundle(id="bundle-1", attention_share=0.1)
+    execution = Execution(id="exec-1", agent_id="agent-1", resource_bundle_id="bundle-1")
+    db_session.add_all([agent, bundle, execution])
     db_session.commit()
 
     prompt = AttentionManager.submit_prompt(db_session, "agent-1", "exec-1", {"q": "test"}, 10.0)
@@ -184,8 +189,9 @@ def test_reward_prompt_invalid_scores(db_session):
 
 def test_reward_prompt_already_responded(db_session):
     agent = Agent(id="agent-1", credit_balance=100.0)
-    execution = Execution(id="exec-1", agent_id="agent-1")
-    db_session.add_all([agent, execution])
+    bundle = ResourceBundle(id="bundle-1", attention_share=0.1)
+    execution = Execution(id="exec-1", agent_id="agent-1", resource_bundle_id="bundle-1")
+    db_session.add_all([agent, bundle, execution])
     db_session.commit()
 
     prompt = AttentionManager.submit_prompt(db_session, "agent-1", "exec-1", {"q": "test"}, 10.0)
@@ -201,8 +207,9 @@ def test_reward_prompt_already_responded(db_session):
 
 def test_submit_prompt_api(db_session, client):
     agent = Agent(id="agent-1", credit_balance=100.0)
-    execution = Execution(id="exec-1", agent_id="agent-1")
-    db_session.add_all([agent, execution])
+    bundle = ResourceBundle(id="bundle-1", attention_share=0.1)
+    execution = Execution(id="exec-1", agent_id="agent-1", resource_bundle_id="bundle-1")
+    db_session.add_all([agent, bundle, execution])
     db_session.commit()
 
     prompt_data = {

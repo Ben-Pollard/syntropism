@@ -1,12 +1,13 @@
 from typing import Annotated
 
 from fastapi import Depends, FastAPI, HTTPException
-from pydantic import BaseModel
+from pydantic import BaseModel, model_validator
 from sqlalchemy.orm import Session
 
 from .attention import AttentionManager
 from .dependencies import get_db
 from .economy import EconomicEngine
+from .models import MarketState, ResourceBundle
 
 app = FastAPI(title="BP Agents API")
 
@@ -47,8 +48,33 @@ class MessageRequest(BaseModel):
 
 class BidRequest(BaseModel):
     agent_id: str
-    bundle_id: str
     amount: float
+    cpu_seconds: float | None = None
+    memory_mb: float | None = None
+    tokens: int | None = None
+    attention_share: float | None = None
+    bundle_id: str | None = None  # Keep for backward compatibility
+
+    @model_validator(mode="after")
+    def check_bundle_or_requirements(self) -> BidRequest:
+        if self.bundle_id:
+            return self
+        if any(
+            [
+                self.cpu_seconds is not None,
+                self.memory_mb is not None,
+                self.tokens is not None,
+                self.attention_share is not None,
+            ]
+        ):
+            return self
+        raise ValueError("Either bundle_id or resource requirements must be provided")
+
+
+@app.get("/market/prices")
+def get_market_prices(db: Annotated[Session, Depends(get_db)]):
+    states = db.query(MarketState).all()
+    return {s.resource_type: s.current_market_price for s in states}
 
 
 @app.get("/economic/balance/{agent_id}")
@@ -115,7 +141,20 @@ def place_bid(request: BidRequest, db: Annotated[Session, Depends(get_db)]):
     from .scheduler import AllocationScheduler
 
     try:
-        bid = AllocationScheduler.place_bid(db, request.agent_id, request.bundle_id, request.amount)
+        bundle_id = request.bundle_id
+        if not bundle_id:
+            # Create a new ResourceBundle from requirements
+            bundle = ResourceBundle(
+                cpu_seconds=request.cpu_seconds or 0.0,
+                memory_mb=request.memory_mb or 0.0,
+                tokens=request.tokens or 0,
+                attention_share=request.attention_share or 0.0,
+            )
+            db.add(bundle)
+            db.flush()  # Get bundle.id
+            bundle_id = bundle.id
+
+        bid = AllocationScheduler.place_bid(db, request.agent_id, bundle_id, request.amount)
         return {"status": "success", "bid_id": bid.id}
     except ValueError as e:
         db.rollback()

@@ -1,6 +1,6 @@
 from sqlalchemy.orm import Session
 
-from .models import Agent, Prompt, PromptStatus, Response, Transaction
+from .models import Agent, Execution, Prompt, PromptStatus, Response, Transaction
 
 # Default conversion rates from docs/design/monolith_spec.md
 ATTENTION_CONVERSION_RATES = {"interesting": 50.0, "useful": 50.0, "understandable": 50.0}
@@ -11,6 +11,15 @@ class AttentionManager:
     def submit_prompt(session: Session, agent_id: str, execution_id: str, content: dict, bid_amount: float) -> Prompt:
         if bid_amount < 0:
             raise ValueError("Bid amount must be non-negative")
+
+        # Fetch the Execution by execution_id
+        execution = session.query(Execution).filter(Execution.id == execution_id).first()
+        if not execution:
+            raise ValueError(f"Execution {execution_id} not found")
+
+        # Check execution.resource_bundle.attention_share > 0
+        if not (execution.resource_bundle and execution.resource_bundle.attention_share > 0):
+            raise ValueError("Agent does not have attention allocation for this execution")
 
         # Lock agent for update to prevent race conditions
         agent = session.query(Agent).filter(Agent.id == agent_id).with_for_update().first()
