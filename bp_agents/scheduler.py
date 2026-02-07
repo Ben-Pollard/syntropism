@@ -1,7 +1,7 @@
 from sqlalchemy.orm import Session
 
 from .market import ResourceType
-from .models import Agent, Bid, BidStatus, MarketState, ResourceBundle
+from .models import Agent, Bid, BidStatus, Execution, MarketState, ResourceBundle
 
 
 class AllocationScheduler:
@@ -54,24 +54,27 @@ class AllocationScheduler:
             can_allocate = True
             for rt, req in requirements.items():
                 if req > 0 and rt in market_states:
-                    # For simplicity, we assume 1 unit of supply = 1 unit of resource
-                    # In a real system, we'd check if consumed_supply[rt] + req <= market_states[rt]
-                    # But the current test expects 1.0 increment per bundle.
-                    # Let's stick to the 1.0 increment for now to keep tests passing,
-                    # but check if ANY supply is left.
-                    if consumed_supply[rt] >= market_states[rt]:
+                    if consumed_supply[rt] + req > market_states[rt]:
                         can_allocate = False
                         break
 
             if can_allocate:
+                # Create Execution record
+                execution = Execution(
+                    agent_id=bid.from_agent_id, resource_bundle_id=bid.resource_bundle_id, status="PENDING"
+                )
+                session.add(execution)
+                session.flush()  # To get execution.id
+
+                bid.execution_id = execution.id
                 bid.status = BidStatus.WINNING
                 bid.agent.credit_balance -= bid.amount
                 allocated_bundles.add(bid.resource_bundle_id)
 
                 # Increment consumed supply for all relevant resources
                 for rt, req in requirements.items():
-                    if req > 0 and rt in market_states:
-                        consumed_supply[rt] += 1.0
+                    if rt in market_states:
+                        consumed_supply[rt] += req
             else:
                 bid.status = BidStatus.OUTBID
 

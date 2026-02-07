@@ -27,6 +27,7 @@ class BidStatus(enum.Enum):
     WINNING = "winning"
     OUTBID = "outbid"
     CANCELLED = "cancelled"
+    COMPLETED = "completed"
 
 
 class PromptStatus(enum.Enum):
@@ -90,10 +91,12 @@ class Bid(Base):
     resource_bundle_id = Column(String, ForeignKey("resource_bundles.id"))
     amount = Column(Float)
     status = Column(SQLEnum(BidStatus), default=BidStatus.PENDING)
+    execution_id = Column(String, ForeignKey("executions.id"), nullable=True)
     timestamp = Column(DateTime, default=utc_now)
 
     agent = relationship("Agent")
     resource_bundle = relationship("ResourceBundle")
+    execution = relationship("Execution", back_populates="bid")
 
 
 class Execution(Base):
@@ -110,6 +113,7 @@ class Execution(Base):
 
     agent = relationship("Agent")
     resource_bundle = relationship("ResourceBundle")
+    bid = relationship("Bid", back_populates="execution", uselist=False)
 
 
 class Message(Base):

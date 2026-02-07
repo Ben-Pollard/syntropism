@@ -3,7 +3,7 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
 from bp_agents.database import Base
-from bp_agents.models import Agent, Bid, BidStatus, MarketState, ResourceBundle
+from bp_agents.models import Agent, Bid, BidStatus, Execution, MarketState, ResourceBundle
 from bp_agents.scheduler import AllocationScheduler
 
 
@@ -143,3 +143,27 @@ def test_allocation_deducts_credits(session):
     # Assert
     session.refresh(agent)
     assert agent.credit_balance == 60.0
+
+
+def test_allocation_creates_execution_record(session):
+    # Setup
+    agent = Agent(credit_balance=100.0)
+    bundle = ResourceBundle(cpu_seconds=1.0, memory_mb=128.0, tokens=0)
+    session.add_all([agent, bundle])
+    session.commit()
+
+    AllocationScheduler.place_bid(session, agent.id, bundle.id, 40.0)
+
+    # Action
+    AllocationScheduler.run_allocation_cycle(session)
+
+    # Assert
+    bid = session.query(Bid).filter_by(from_agent_id=agent.id).first()
+    assert bid.status == BidStatus.WINNING
+    assert bid.execution_id is not None
+
+    execution = session.query(Execution).filter_by(id=bid.execution_id).first()
+    assert execution is not None
+    assert execution.agent_id == agent.id
+    assert execution.resource_bundle_id == bundle.id
+    assert execution.status == "PENDING"
