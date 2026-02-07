@@ -1,12 +1,11 @@
+workspaces/*
+!workspaces/genesis
 
 .roo/
-
 .roomodes
-
+alignment-skill.skill
+ 
 bp_agents/__pycache__/
-
-.coverage
-
-test_output.txt
-
 tests/__pycache__/
+.coverage
+test_output.txt

@@ -1,3 +1,4 @@
+import os
 import unittest
 from unittest.mock import MagicMock, patch
 
@@ -124,3 +125,24 @@ class TestExecutionSandbox(unittest.TestCase):
         _, kwargs = self.mock_client.containers.run.call_args
         env = kwargs.get("environment", {})
         self.assertEqual(env.get("SYSTEM_SERVICE_URL"), custom_url)
+
+    def test_run_agent_writes_env_json(self):
+        import json
+        import tempfile
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            runtime_data = {"credits": 100.0, "agent_id": self.agent_id}
+
+            # Setup mock container
+            mock_container = MagicMock()
+            self.mock_client.containers.run.return_value = mock_container
+            mock_container.wait.return_value = {"StatusCode": 0}
+            mock_container.logs.return_value = b"OK"
+
+            self.sandbox.run_agent(self.agent_id, tmpdir, self.resource_bundle, runtime_data=runtime_data)
+
+            env_json_path = os.path.join(tmpdir, "env.json")
+            self.assertTrue(os.path.exists(env_json_path))
+            with open(env_json_path) as f:
+                saved_data = json.load(f)
+            self.assertEqual(saved_data, runtime_data)

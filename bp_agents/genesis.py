@@ -46,8 +46,13 @@ def create_genesis_agent(session: Session) -> Agent:
     """
     Create the first agent with initial credits and workspace.
     """
+    workspace_root = os.path.join(os.getcwd(), "workspaces")
+    os.makedirs(workspace_root, exist_ok=True)
     agent = _create_agent_with_workspace(
-        session=session, credit_balance=1000.0, spawn_lineage=[], filesystem_path="/tmp/genesis"
+        session=session,
+        credit_balance=1000.0,
+        spawn_lineage=[],
+        filesystem_path=os.path.join(workspace_root, "genesis"),
     )
     session.commit()
     session.refresh(agent)
@@ -81,11 +86,13 @@ def spawn_child_agent(session: Session, parent_id: str, initial_credits: float, 
     new_lineage = [parent_id] + parent.spawn_lineage
 
     child_id = str(uuid.uuid4())
+    workspace_root = os.path.join(os.getcwd(), "workspaces")
+    os.makedirs(workspace_root, exist_ok=True)
     child = _create_agent_with_workspace(
         session=session,
         credit_balance=initial_credits,
         spawn_lineage=new_lineage,
-        filesystem_path=f"/tmp/agent-{child_id}",
+        filesystem_path=os.path.join(workspace_root, f"agent-{child_id}"),
         agent_id=child_id,
     )
 

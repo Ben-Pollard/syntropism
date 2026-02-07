@@ -1,0 +1,15 @@
+[tool.poetry]
+name = "bp-agent-runtime"
+version = "0.1.0"
+description = "Standardized runtime for BP agents"
+authors = ["BP Team"]
+
+package-mode = false
+
+[tool.poetry.dependencies]
+python = "^3.14"
+requests = "^2.31.0"
+
+[build-system]
+requires = ["poetry-core>=1.0.0"]
+build-backend = "poetry.core.masonry.api"

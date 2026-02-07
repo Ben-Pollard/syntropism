@@ -11,7 +11,9 @@ class ExecutionSandbox:
         self.image = image
         self.system_service_url = system_service_url or os.getenv("SYSTEM_SERVICE_URL", "http://system-service:8000")
 
-    def run_agent(self, agent_id: str, workspace_path: str, resource_bundle: ResourceBundle):
+    def run_agent(
+        self, agent_id: str, workspace_path: str, resource_bundle: ResourceBundle, runtime_data: dict = None
+    ):
         """
         Runs an agent in a Docker container with specified resource limits.
         """
@@ -22,6 +24,13 @@ class ExecutionSandbox:
         # Default period is 100,000 (100ms)
         cpu_period = 100000
         cpu_quota = int(resource_bundle.cpu_seconds * cpu_period)
+
+        import json
+
+        if runtime_data:
+            env_json_path = os.path.join(workspace_path, "env.json")
+            with open(env_json_path, "w") as f:
+                json.dump(runtime_data, f, indent=2)
 
         environment = {"AGENT_ID": agent_id, "SYSTEM_SERVICE_URL": self.system_service_url}
 

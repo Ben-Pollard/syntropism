@@ -39,6 +39,18 @@ class SpawnRequest(BaseModel):
     payload: dict[str, str] | None = None
 
 
+class MessageRequest(BaseModel):
+    from_id: str
+    to_id: str
+    content: str
+
+
+class BidRequest(BaseModel):
+    agent_id: str
+    bundle_id: str
+    amount: float
+
+
 @app.get("/economic/balance/{agent_id}")
 def get_balance(agent_id: str, db: Annotated[Session, Depends(get_db)]):
     try:
@@ -79,6 +91,32 @@ def spawn_agent(request: SpawnRequest, db: Annotated[Session, Depends(get_db)]):
 
         child = spawn_child_agent(db, request.parent_id, request.initial_credits, request.payload)
         return {"status": "success", "child_id": child.id, "workspace_id": child.workspace_id}
+    except ValueError as e:
+        db.rollback()
+        raise HTTPException(status_code=400, detail=str(e)) from e
+
+
+@app.post("/social/message")
+def send_message(request: MessageRequest, db: Annotated[Session, Depends(get_db)]):
+    from .models import Message
+
+    try:
+        message = Message(from_agent_id=request.from_id, to_agent_id=request.to_id, content=request.content)
+        db.add(message)
+        db.commit()
+        return {"status": "success", "message_id": message.id}
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=400, detail=str(e)) from e
+
+
+@app.post("/market/bid")
+def place_bid(request: BidRequest, db: Annotated[Session, Depends(get_db)]):
+    from .scheduler import AllocationScheduler
+
+    try:
+        bid = AllocationScheduler.place_bid(db, request.agent_id, request.bundle_id, request.amount)
+        return {"status": "success", "bid_id": bid.id}
     except ValueError as e:
         db.rollback()
         raise HTTPException(status_code=400, detail=str(e)) from e

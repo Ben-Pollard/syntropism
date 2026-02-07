@@ -117,3 +117,43 @@ def test_transfer_agent_not_found(client):
     response = client.post("/economic/transfer", json=transfer_data)
     assert response.status_code == 400
     assert "not found" in response.json()["detail"].lower()
+
+
+def test_send_message(db_session, client):
+    # Create test agents
+    agent1 = Agent(id="agent1", credit_balance=100.0)
+    agent2 = Agent(id="agent2", credit_balance=50.0)
+    db_session.add(agent1)
+    db_session.add(agent2)
+    db_session.commit()
+
+    message_data = {
+        "from_id": "agent1",
+        "to_id": "agent2",
+        "content": "Hello agent2!",
+    }
+    response = client.post("/social/message", json=message_data)
+    assert response.status_code == 200
+    assert response.json()["status"] == "success"
+    assert "message_id" in response.json()
+
+
+def test_place_bid(db_session, client):
+    from bp_agents.models import ResourceBundle
+
+    # Create test agent and bundle
+    agent = Agent(id="agent1", credit_balance=100.0)
+    bundle = ResourceBundle(id="bundle1", cpu_seconds=1.0, memory_mb=512.0, tokens=1000)
+    db_session.add(agent)
+    db_session.add(bundle)
+    db_session.commit()
+
+    bid_data = {
+        "agent_id": "agent1",
+        "bundle_id": "bundle1",
+        "amount": 50.0,
+    }
+    response = client.post("/market/bid", json=bid_data)
+    assert response.status_code == 200
+    assert response.json()["status"] == "success"
+    assert "bid_id" in response.json()
