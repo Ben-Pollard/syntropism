@@ -30,17 +30,12 @@ class AllocationScheduler:
         # Sort by price (highest first)
         pending_bids.sort(key=lambda x: x.amount, reverse=True)
 
-        allocated_bundles = set()
-
         # Track supply per resource type
-        market_states = {ms.resource_type: ms.available_supply for ms in session.query(MarketState).all()}
+        market_states_objs = session.query(MarketState).all()
+        market_states = {ms.resource_type: ms.available_supply for ms in market_states_objs}
         consumed_supply = dict.fromkeys(market_states, 0.0)
 
         for bid in pending_bids:
-            if bid.resource_bundle_id in allocated_bundles:
-                bid.status = BidStatus.OUTBID
-                continue
-
             bundle = bid.resource_bundle
 
             # Check all resource requirements
@@ -58,6 +53,10 @@ class AllocationScheduler:
                         can_allocate = False
                         break
 
+            # Also check if agent has enough credits (re-verify during cycle)
+            if can_allocate and bid.agent.credit_balance < bid.amount:
+                can_allocate = False
+
             if can_allocate:
                 # Create Execution record
                 execution = Execution(
@@ -69,7 +68,6 @@ class AllocationScheduler:
                 bid.execution_id = execution.id
                 bid.status = BidStatus.WINNING
                 bid.agent.credit_balance -= bid.amount
-                allocated_bundles.add(bid.resource_bundle_id)
 
                 # Increment consumed supply for all relevant resources
                 for rt, req in requirements.items():
@@ -77,5 +75,9 @@ class AllocationScheduler:
                         consumed_supply[rt] += req
             else:
                 bid.status = BidStatus.OUTBID
+
+        # Update MarketState utilization in DB
+        for ms in market_states_objs:
+            ms.current_utilization = consumed_supply.get(ms.resource_type, 0.0)
 
         session.commit()

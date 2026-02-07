@@ -65,10 +65,16 @@ def test_place_bid_bundle_not_found(session):
 
 def test_allocation_highest_bidder_wins(session):
     # Setup
+    from bp_agents.market import ResourceType
+
     agent1 = Agent(credit_balance=100.0)
     agent2 = Agent(credit_balance=100.0)
     bundle = ResourceBundle(cpu_seconds=1.0, memory_mb=128.0, tokens=1000)
-    session.add_all([agent1, agent2, bundle])
+    # Market supply is only 1.0, but both agents want 1.0
+    market_state = MarketState(
+        resource_type=ResourceType.CPU.value, available_supply=1.0, current_utilization=0.0, current_market_price=1.0
+    )
+    session.add_all([agent1, agent2, bundle, market_state])
     session.commit()
 
     # Place bids
@@ -167,3 +173,46 @@ def test_allocation_creates_execution_record(session):
     assert execution.agent_id == agent.id
     assert execution.resource_bundle_id == bundle.id
     assert execution.status == "PENDING"
+
+
+def test_allocation_prevents_negative_balance(session):
+    # Setup: Agent has 100 credits, places two bids of 75 each.
+    # Only one should win.
+    agent = Agent(credit_balance=100.0)
+    bundle1 = ResourceBundle(cpu_seconds=1.0, memory_mb=128.0, tokens=0)
+    bundle2 = ResourceBundle(cpu_seconds=1.0, memory_mb=128.0, tokens=0)
+    session.add_all([agent, bundle1, bundle2])
+    session.commit()
+
+    AllocationScheduler.place_bid(session, agent.id, bundle1.id, 75.0)
+    AllocationScheduler.place_bid(session, agent.id, bundle2.id, 75.0)
+
+    # Action
+    AllocationScheduler.run_allocation_cycle(session)
+
+    # Assert
+    session.refresh(agent)
+    assert agent.credit_balance >= 0
+    winning_bids = session.query(Bid).filter_by(from_agent_id=agent.id, status=BidStatus.WINNING).all()
+    assert len(winning_bids) == 1
+
+
+def test_allocation_updates_market_utilization(session):
+    # Setup
+    from bp_agents.market import ResourceType
+    market_state = MarketState(
+        resource_type=ResourceType.CPU.value, available_supply=10.0, current_utilization=0.0, current_market_price=1.0
+    )
+    agent = Agent(credit_balance=100.0)
+    bundle = ResourceBundle(cpu_seconds=2.0, memory_mb=128.0, tokens=0)
+    session.add_all([market_state, agent, bundle])
+    session.commit()
+
+    AllocationScheduler.place_bid(session, agent.id, bundle.id, 50.0)
+
+    # Action
+    AllocationScheduler.run_allocation_cycle(session)
+
+    # Assert
+    session.refresh(market_state)
+    assert market_state.current_utilization == 2.0
