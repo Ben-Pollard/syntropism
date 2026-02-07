@@ -2,3 +2,11 @@
 .roo/
 
 .roomodes
+
+bp_agents/__pycache__/
+
+.coverage
+
+test_output.txt
+
+tests/__pycache__/
