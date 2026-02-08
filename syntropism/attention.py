@@ -1,6 +1,8 @@
+from loguru import logger
 from sqlalchemy.orm import Session
 
 from .models import Agent, Execution, Prompt, PromptStatus, Response, Transaction
+from .services import SocialService
 
 # Default conversion rates from docs/design/monolith_spec.md
 ATTENTION_CONVERSION_RATES = {"interesting": 50.0, "useful": 50.0, "understandable": 50.0}
@@ -124,3 +126,14 @@ class AttentionManager:
         prompt.status = PromptStatus.RESPONDED
 
         return response
+
+    @staticmethod
+    async def notify_human_async(message: str) -> str:
+        """
+        Asynchronous method for non-blocking human interaction using SocialService.
+        This replaces direct blocking calls with async I/O.
+        """
+        social_service = SocialService()
+        logger.debug(f'AttentionManager.notify_human_async sending message via SocialService: {message}')
+        result = await social_service.send_async_message(message)
+        return result

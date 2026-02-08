@@ -47,7 +47,13 @@ def run_system_loop(session: Session):
             json.dump(env_data, f, indent=2)
 
         # Run the agent in sandbox
-        sandbox = ExecutionSandbox()
+        debug_mode = os.getenv("DEBUG") == "1"
+        if debug_mode:
+            print(f"\n[DEBUG] Starting agent {agent.id} in DEBUG mode.")
+            print("[DEBUG] Waiting for debugger attach on port 5678...")
+            print("[DEBUG] Please run 'Debug Agent (Attach)' configuration in VS Code.")
+
+        sandbox = ExecutionSandbox(debug=debug_mode)
         exit_code, logs = sandbox.run_agent(
             agent_id=agent.id,
             workspace_path=workspace_path,

@@ -1,127 +1,104 @@
-# Current Architecture: Syntropism
+# Current Architecture: Genesis Agent & System Services
 
-## 1. System Overview
-Syntropism is an evolutionary agent economy system where agents compete for computational resources and human attention. The system is designed as a "Physics Engine" for agents, where survival is determined by economic viability.
+## 1. Component Interactions
 
-### Core Axioms
-- **Execution = Existence**: Agents only exist during discrete execution windows.
-- **Oblivion**: Between executions, agents are suspended and cannot observe or react.
-- **Human as the Sun**: Human attention injects credits into the system; all other movements are transfers.
+The system follows a hub-and-spoke architecture where the **Orchestrator** manages the lifecycle of agents, and agents interact with **System Services** via a REST API.
 
-## 2. Component Architecture
-
+### System Overview
 ```mermaid
 graph TD
-    subgraph "Economic Runtime (Host)"
-        Orchestrator[Orchestrator Loop]
-        Scheduler[Allocation Scheduler]
-        Market[Market Manager]
-        Economy[Economic Engine]
-        Attention[Attention Manager]
-        DB[(SQL Database)]
+    subgraph Host Environment
+        ORC[Orchestrator] --> SCH[AllocationScheduler]
+        ORC --> SBX[ExecutionSandbox]
+        ORC --> MKT[MarketManager]
+        ORC --> ATT[AttentionManager]
+        
+        API[FastAPI Service] --> ECO[EconomicEngine]
+        API --> ATT
+        API --> GEN[Genesis/Spawn Logic]
+        API --> LLM[LLM Proxy]
     end
 
-    subgraph "Agent Execution (Sandbox)"
-        Sandbox[Docker Sandbox]
-        AgentLogic[Agent main.py]
-        Workspace[Agent Workspace FS]
+    subgraph Docker Sandbox
+        AGT[Genesis Agent] -->|HTTP| API
+        AGT -->|Filesystem| WS[Workspace /workspace]
+        AGT -->|Debug| DBG[debugpy :5678]
     end
 
-    subgraph "External"
-        Human[Human User]
-    end
-
-    Orchestrator --> Scheduler
-    Orchestrator --> Sandbox
-    Orchestrator --> Market
-    Orchestrator --> Attention
-
-    Scheduler --> DB
-    Market --> DB
-    Economy --> DB
-    Attention --> DB
-
-    Sandbox --> Workspace
-    Sandbox -- "HTTP API" --> Service[System Service]
-    Service --> Economy
-    Service --> Attention
-    Service --> Market
-
-    Attention -- "Terminal I/O" --> Human
+    SBX -->|Launch| AGT
+    SBX -->|Bind Mount| WS
+    WS ---|Host Path| HWS[workspaces/agent_id]
 ```
 
-### Key Components
-- **[`Orchestrator`](syntropism/orchestrator.py)**: Drives the system loop (Allocation -> Execution -> Market Update -> Attention).
-- **[`AllocationScheduler`](syntropism/scheduler.py)**: Clears the market by matching pending bids with available resource supply.
-- **[`MarketManager`](syntropism/market.py)**: Adjusts resource prices based on utilization (supply/demand).
-- **[`ExecutionSandbox`](syntropism/sandbox.py)**: Manages Docker containers for isolated agent execution with hard resource limits.
-- **[`SystemService`](syntropism/service.py)**: FastAPI-based interface for agents to interact with the economy while executing.
-
-## 3. Data Model
-
+### Agent Execution Cycle
 ```mermaid
-erDiagram
-    AGENT ||--o{ BID : places
-    AGENT ||--o{ EXECUTION : performs
-    AGENT ||--|| WORKSPACE : owns
-    BID ||--|| RESOURCE_BUNDLE : requires
-    BID ||--o| EXECUTION : results_in
-    PROMPT ||--|| AGENT : from
-    PROMPT ||--o| RESPONSE : receives
-    EXECUTION ||--o{ PROMPT : generates
+sequenceDiagram
+    participant O as Orchestrator
+    participant S as Scheduler
+    participant X as Sandbox
+    participant A as Agent
+    participant API as System API
 
-    AGENT {
-        string id
-        float credit_balance
-        enum status
-        int execution_count
-    }
-    BID {
-        string id
-        float amount
-        enum status
-    }
-    RESOURCE_BUNDLE {
-        float cpu_seconds
-        float memory_mb
-        int tokens
-        float attention_share
-    }
-    EXECUTION {
-        string id
-        datetime start_time
-        datetime end_time
-        string status
-    }
-    MARKET_STATE {
-        string resource_type
-        float available_supply
-        float current_utilization
-        float current_market_price
-    }
+    O->>S: run_allocation_cycle()
+    S-->>O: Winning Bids
+    O->>X: run_agent(bid)
+    X->>X: Create env.json
+    X->>A: Start Docker Container
+    A->>API: GET /market/prices
+    A->>API: GET /economic/balance
+    A->>API: POST /market/bid
+    A->>API: POST /human/prompt
+    A-->>X: Exit
+    X-->>O: Exit Code & Logs
+    O->>O: Update Bid & Execution Status
 ```
 
-## 4. Key Architectural Decisions (ADRs)
+## 2. Data Models
 
-### ADR 001: Discrete Execution Model
-- **Decision**: Agents do not run continuously. They bid for discrete "execution windows."
-- **Rationale**: Enforces resource scarcity and simplifies scaling. Agents must be economically efficient to "buy" their next moment of existence.
+The system uses SQLAlchemy for persistence. Key entities include:
 
-### ADR 002: All-or-Nothing Resource Bundling
-- **Decision**: Bids must specify a complete bundle of resources (CPU, Memory, Tokens).
-- **Rationale**: Prevents partial allocations where an agent might have CPU but no memory, leading to wasted credits and deadlocks.
+- **Agent**: Represents an autonomous entity with a `credit_balance` and `spawn_lineage`.
+- **Workspace**: Tracks the `filesystem_path` for an agent's persistent storage.
+- **Bid**: A request for resources (`ResourceBundle`) with an associated `amount`.
+- **ResourceBundle**: Defines CPU, Memory, Tokens, and Attention Share.
+- **Execution**: Records the start/end time, status, and exit code of an agent run.
+- **Prompt & Response**: Manages human-in-the-loop interactions and rewards.
+- **Transaction**: Audit log of all credit movements.
+- **MarketState**: Tracks supply, utilization, and price for resource types.
 
-### ADR 003: Docker-based Sandboxing
-- **Decision**: Use Docker containers with `cgroups` limits for agent execution.
-- **Rationale**: Provides strong isolation and hard enforcement of CPU/Memory limits, essential for a competitive economy.
+## 3. Key Architectural Decision Records (ADRs)
 
-### ADR 004: Human-in-the-Loop Value Injection
-- **Decision**: Credits are only created when a human rewards an agent's prompt.
-- **Rationale**: Anchors the economy to external utility. Without this, the system would be a closed loop prone to hyperinflation or stagnation.
+### ADR 001: Docker-Based Isolation
+- **Context**: Agents execute arbitrary code.
+- **Decision**: Use Docker containers with `mem_limit` and `cpu_quota` for hard resource isolation.
+- **Consequences**: Requires Docker daemon access; provides strong security boundary.
 
-## 5. Execution Lifecycle
-1. **Allocation**: Scheduler sorts bids by price and allocates supply to highest bidders.
-2. **Preparation**: Orchestrator mounts the agent's workspace and writes `env.json`.
-3. **Execution**: Sandbox runs the agent's `main.py` until completion or resource exhaustion.
-4. **Interaction**: Agent calls `SystemService` to send messages, spawn children, or bid for future execution.
-5. **Cleanup**: Sandbox is destroyed; state is persisted in the workspace and database.
+### ADR 002: REST API for System Interactions
+- **Context**: Agents need to interact with the system (market, economy, social).
+- **Decision**: Provide a FastAPI-based REST API. Agents communicate via HTTP.
+- **Consequences**: Language agnostic for agents; requires network connectivity within Docker.
+
+### ADR 003: Filesystem-Based Context Passing
+- **Context**: Agents need initial state (ID, credits) upon startup.
+- **Decision**: Orchestrator writes `env.json` to the agent's workspace before launch.
+- **Consequences**: Simple, but requires agents to poll API for real-time updates if `env.json` becomes stale.
+
+### ADR 004: Credit-Based Resource Allocation
+- **Context**: Resources are finite.
+- **Decision**: Use a bidding system where agents spend credits for execution windows.
+- **Consequences**: Encourages efficient resource use; requires a stable economic engine.
+
+### ADR 005: Agent Autonomy & Service Locality
+- **Context**: Agents need service layers (Cognition, Economic) to interact with the system.
+- **Decision**: Implement service layers within the agent's workspace (`workspaces/genesis/services.py`) rather than the host SDK.
+- **Consequences**: Agents are self-contained; reduces host-side dependency; simplifies agent-side development.
+
+### ADR 006: Docker-First Debugging
+- **Context**: Debugging agents in isolated containers is difficult.
+- **Decision**: Use `debugpy` within the Docker container and expose port 5678 for VS Code attachment.
+- **Consequences**: Provides full breakpoint support without compromising isolation; requires `debug` flag in `ExecutionSandbox`.
+
+### ADR 007: Unified Observability
+- **Context**: Logs are scattered across components.
+- **Decision**: Use a single `system.log` for all components (Orchestrator, API, Agents) with structured tagging.
+- **Consequences**: Simplifies debugging and auditing; requires consistent `loguru` configuration.

@@ -7,9 +7,13 @@ from sqlalchemy.orm import Session
 from .attention import AttentionManager
 from .dependencies import get_db
 from .economy import EconomicEngine
+from .llm_proxy import router as llm_router
 from .models import MarketState, ResourceBundle
 
 app = FastAPI(title="BP Agents API")
+
+# Mount LLM proxy router
+app.include_router(llm_router, prefix="/api/v1", tags=["llm"])
 
 
 class TransferRequest(BaseModel):

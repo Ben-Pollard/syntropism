@@ -6,10 +6,11 @@ from .models import ResourceBundle
 
 
 class ExecutionSandbox:
-    def __init__(self, image="bp-agent-runner:latest", system_service_url=None):
+    def __init__(self, image="bp-agent-runner:latest", system_service_url=None, debug=False):
         self.client = docker.from_env()
         self.image = image
         self.system_service_url = system_service_url or os.getenv("SYSTEM_SERVICE_URL", "http://system-service:8000")
+        self.debug = debug
 
     def run_agent(self, agent_id: str, workspace_path: str, resource_bundle: ResourceBundle, runtime_data: dict = None):
         """
@@ -31,6 +32,11 @@ class ExecutionSandbox:
                 json.dump(runtime_data, f, indent=2)
 
         environment = {"AGENT_ID": agent_id, "SYSTEM_SERVICE_URL": self.system_service_url}
+
+        # Enable debug mode if requested
+        if self.debug:
+            environment["DEBUG"] = "1"
+            environment["DEBUGPY_ENABLE"] = "1"
 
         volumes = {workspace_path: {"bind": "/workspace", "mode": "rw"}}
 

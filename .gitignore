@@ -1,5 +1,6 @@
 workspaces/*
 !workspaces/genesis
+workspaces/genesis/env.json
 
 .roo/
 .roomodes
@@ -11,5 +12,4 @@ alignment-skill.skill
 test_output.txt
 
 *.db
-
-workspaces/genesis/env.json
+*.log

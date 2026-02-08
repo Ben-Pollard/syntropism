@@ -26,7 +26,7 @@ def db_session():
 
 def test_init_db_seeds_market_state(db_session):
     # This test will verify that our seeding logic works
-    from main import seed_market_state
+    from syntropism.cli import seed_market_state
 
     seed_market_state(db_session)
 
@@ -51,7 +51,7 @@ def test_init_db_seeds_market_state(db_session):
 
 
 def test_init_db_seeds_genesis_agent(db_session):
-    from main import seed_genesis_agent
+    from syntropism.cli import seed_genesis_agent
 
     seed_genesis_agent(db_session)
 
