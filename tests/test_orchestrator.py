@@ -5,8 +5,8 @@ import pytest
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
-from bp_agents.database import Base
-from bp_agents.models import Agent, AgentStatus, Bid, BidStatus, Execution, MarketState, ResourceBundle, Workspace
+from syntropism.database import Base
+from syntropism.models import Agent, AgentStatus, Bid, BidStatus, Execution, MarketState, ResourceBundle, Workspace
 
 TEST_DATABASE_URL = "sqlite:///./test_orchestrator.db"
 
@@ -82,7 +82,7 @@ def sample_resource_bundle(db_session):
 
 def test_run_system_loop_calls_allocation_cycle(db_session, sample_market_states, sample_agent, sample_resource_bundle):
     """Test that run_system_loop calls allocation cycle."""
-    from bp_agents.orchestrator import run_system_loop
+    from syntropism.orchestrator import run_system_loop
 
     # Create a bid that will be marked as WINNING by the allocation cycle
     bid = Bid(
@@ -94,16 +94,16 @@ def test_run_system_loop_calls_allocation_cycle(db_session, sample_market_states
     db_session.add(bid)
     db_session.commit()
 
-    with patch("bp_agents.orchestrator.AllocationScheduler") as mock_allocate:
+    with patch("syntropism.orchestrator.AllocationScheduler") as mock_allocate:
         mock_allocate.run_allocation_cycle.return_value = None
-        with patch("bp_agents.orchestrator.ExecutionSandbox") as mock_sandbox:
+        with patch("syntropism.orchestrator.ExecutionSandbox") as mock_sandbox:
             mock_sandbox_instance = MagicMock()
             mock_sandbox_instance.run_agent.return_value = (0, "success")
             mock_sandbox.return_value = mock_sandbox_instance
 
-            with patch("bp_agents.orchestrator.MarketManager") as mock_market:
+            with patch("syntropism.orchestrator.MarketManager") as mock_market:
                 mock_market.update_prices.return_value = None
-                with patch("bp_agents.orchestrator.AttentionManager") as mock_attention:
+                with patch("syntropism.orchestrator.AttentionManager") as mock_attention:
                     mock_attention.get_pending_prompts.return_value = []
 
                     run_system_loop(db_session)
@@ -114,7 +114,7 @@ def test_run_system_loop_calls_allocation_cycle(db_session, sample_market_states
 
 def test_run_system_loop_executes_winning_bids(db_session, sample_market_states, sample_agent, sample_resource_bundle):
     """Test that run_system_loop executes winning bids."""
-    from bp_agents.orchestrator import run_system_loop
+    from syntropism.orchestrator import run_system_loop
 
     # Create a bid that is already WINNING
     bid = Bid(
@@ -137,16 +137,16 @@ def test_run_system_loop_executes_winning_bids(db_session, sample_market_states,
     bid.execution_id = execution.id
     db_session.commit()
 
-    with patch("bp_agents.orchestrator.AllocationScheduler") as mock_allocate:
+    with patch("syntropism.orchestrator.AllocationScheduler") as mock_allocate:
         mock_allocate.run_allocation_cycle.return_value = None
-        with patch("bp_agents.orchestrator.ExecutionSandbox") as mock_sandbox:
+        with patch("syntropism.orchestrator.ExecutionSandbox") as mock_sandbox:
             mock_sandbox_instance = MagicMock()
             mock_sandbox_instance.run_agent.return_value = (0, "success")
             mock_sandbox.return_value = mock_sandbox_instance
 
-            with patch("bp_agents.orchestrator.MarketManager") as mock_market:
+            with patch("syntropism.orchestrator.MarketManager") as mock_market:
                 mock_market.update_prices.return_value = None
-                with patch("bp_agents.orchestrator.AttentionManager") as mock_attention:
+                with patch("syntropism.orchestrator.AttentionManager") as mock_attention:
                     mock_attention.get_pending_prompts.return_value = []
 
                     run_system_loop(db_session)
@@ -163,7 +163,7 @@ def test_run_system_loop_executes_winning_bids(db_session, sample_market_states,
 
 def test_run_system_loop_updates_bid_status(db_session, sample_market_states, sample_agent, sample_resource_bundle):
     """Test that run_system_loop updates bid status to COMPLETED."""
-    from bp_agents.orchestrator import run_system_loop
+    from syntropism.orchestrator import run_system_loop
 
     # Create a bid that is WINNING
     bid = Bid(
@@ -185,16 +185,16 @@ def test_run_system_loop_updates_bid_status(db_session, sample_market_states, sa
     bid.execution_id = execution.id
     db_session.commit()
 
-    with patch("bp_agents.orchestrator.AllocationScheduler") as mock_allocate:
+    with patch("syntropism.orchestrator.AllocationScheduler") as mock_allocate:
         mock_allocate.run_allocation_cycle.return_value = None
-        with patch("bp_agents.orchestrator.ExecutionSandbox") as mock_sandbox:
+        with patch("syntropism.orchestrator.ExecutionSandbox") as mock_sandbox:
             mock_sandbox_instance = MagicMock()
             mock_sandbox_instance.run_agent.return_value = (0, "success")
             mock_sandbox.return_value = mock_sandbox_instance
 
-            with patch("bp_agents.orchestrator.MarketManager") as mock_market:
+            with patch("syntropism.orchestrator.MarketManager") as mock_market:
                 mock_market.update_prices.return_value = None
-                with patch("bp_agents.orchestrator.AttentionManager") as mock_attention:
+                with patch("syntropism.orchestrator.AttentionManager") as mock_attention:
                     mock_attention.get_pending_prompts.return_value = []
 
                     run_system_loop(db_session)
@@ -206,18 +206,18 @@ def test_run_system_loop_updates_bid_status(db_session, sample_market_states, sa
 
 def test_run_system_loop_updates_market_prices(db_session, sample_market_states, sample_agent):
     """Test that run_system_loop updates market prices."""
-    from bp_agents.orchestrator import run_system_loop
+    from syntropism.orchestrator import run_system_loop
 
-    with patch("bp_agents.orchestrator.AllocationScheduler") as mock_allocate:
+    with patch("syntropism.orchestrator.AllocationScheduler") as mock_allocate:
         mock_allocate.run_allocation_cycle.return_value = None
-        with patch("bp_agents.orchestrator.ExecutionSandbox") as mock_sandbox:
+        with patch("syntropism.orchestrator.ExecutionSandbox") as mock_sandbox:
             mock_sandbox_instance = MagicMock()
             mock_sandbox_instance.run_agent.return_value = (0, "success")
             mock_sandbox.return_value = mock_sandbox_instance
 
-            with patch("bp_agents.orchestrator.MarketManager") as mock_market:
+            with patch("syntropism.orchestrator.MarketManager") as mock_market:
                 mock_market.update_prices.return_value = None
-                with patch("bp_agents.orchestrator.AttentionManager") as mock_attention:
+                with patch("syntropism.orchestrator.AttentionManager") as mock_attention:
                     mock_attention.get_pending_prompts.return_value = []
 
                     run_system_loop(db_session)
@@ -228,8 +228,8 @@ def test_run_system_loop_updates_market_prices(db_session, sample_market_states,
 
 def test_run_system_loop_processes_attention_prompts(db_session, sample_market_states, sample_agent):
     """Test that run_system_loop processes pending attention prompts."""
-    from bp_agents.models import Prompt, PromptStatus
-    from bp_agents.orchestrator import run_system_loop
+    from syntropism.models import Prompt, PromptStatus
+    from syntropism.orchestrator import run_system_loop
 
     # Create a pending prompt
     prompt = Prompt(
@@ -242,16 +242,16 @@ def test_run_system_loop_processes_attention_prompts(db_session, sample_market_s
     db_session.add(prompt)
     db_session.commit()
 
-    with patch("bp_agents.orchestrator.AllocationScheduler") as mock_allocate:
+    with patch("syntropism.orchestrator.AllocationScheduler") as mock_allocate:
         mock_allocate.run_allocation_cycle.return_value = None
-        with patch("bp_agents.orchestrator.ExecutionSandbox") as mock_sandbox:
+        with patch("syntropism.orchestrator.ExecutionSandbox") as mock_sandbox:
             mock_sandbox_instance = MagicMock()
             mock_sandbox_instance.run_agent.return_value = (0, "success")
             mock_sandbox.return_value = mock_sandbox_instance
 
-            with patch("bp_agents.orchestrator.MarketManager") as mock_market:
+            with patch("syntropism.orchestrator.MarketManager") as mock_market:
                 mock_market.update_prices.return_value = None
-                with patch("bp_agents.orchestrator.AttentionManager") as mock_attention:
+                with patch("syntropism.orchestrator.AttentionManager") as mock_attention:
                     mock_attention.get_pending_prompts.return_value = [prompt]
 
                     with patch("builtins.input", return_value="8 7 9"):
@@ -268,7 +268,7 @@ def test_env_json_created_for_execution(db_session, sample_market_states, sample
     """Test that env.json is created for execution."""
     import json
 
-    from bp_agents.orchestrator import run_system_loop
+    from syntropism.orchestrator import run_system_loop
 
     # Create a winning bid
     bid = Bid(
@@ -292,16 +292,16 @@ def test_env_json_created_for_execution(db_session, sample_market_states, sample
 
     workspace_path = "/tmp/test-workspace"
 
-    with patch("bp_agents.orchestrator.AllocationScheduler") as mock_allocate:
+    with patch("syntropism.orchestrator.AllocationScheduler") as mock_allocate:
         mock_allocate.run_allocation_cycle.return_value = None
-        with patch("bp_agents.orchestrator.ExecutionSandbox") as mock_sandbox:
+        with patch("syntropism.orchestrator.ExecutionSandbox") as mock_sandbox:
             mock_sandbox_instance = MagicMock()
             mock_sandbox_instance.run_agent.return_value = (0, "success")
             mock_sandbox.return_value = mock_sandbox_instance
 
-            with patch("bp_agents.orchestrator.MarketManager") as mock_market:
+            with patch("syntropism.orchestrator.MarketManager") as mock_market:
                 mock_market.update_prices.return_value = None
-                with patch("bp_agents.orchestrator.AttentionManager") as mock_attention:
+                with patch("syntropism.orchestrator.AttentionManager") as mock_attention:
                     mock_attention.get_pending_prompts.return_value = []
 
                     run_system_loop(db_session)

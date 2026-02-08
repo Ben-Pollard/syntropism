@@ -4,8 +4,8 @@ import pytest
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
-from bp_agents.database import Base
-from bp_agents.models import Agent, AgentStatus, MarketState
+from syntropism.database import Base
+from syntropism.models import Agent, AgentStatus, MarketState
 
 # We'll mock the database for testing
 TEST_DATABASE_URL = "sqlite:///./test_main.db"

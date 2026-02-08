@@ -5,10 +5,10 @@ import pytest
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
-from bp_agents.database import Base
-from bp_agents.genesis import create_genesis_agent
-from bp_agents.models import ResourceBundle
-from bp_agents.sandbox import ExecutionSandbox
+from syntropism.database import Base
+from syntropism.genesis import create_genesis_agent
+from syntropism.models import ResourceBundle
+from syntropism.sandbox import ExecutionSandbox
 
 
 @pytest.fixture

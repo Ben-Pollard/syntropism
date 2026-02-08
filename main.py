@@ -17,11 +17,11 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 from sqlalchemy.orm import Session
 
-from bp_agents.database import Base, SessionLocal, engine
-from bp_agents.genesis import create_genesis_agent
-from bp_agents.market import ResourceType
-from bp_agents.models import Agent, Bid, BidStatus, MarketState, ResourceBundle
-from bp_agents.orchestrator import run_system_loop
+from syntropism.database import Base, SessionLocal, engine
+from syntropism.genesis import create_genesis_agent
+from syntropism.market import ResourceType
+from syntropism.models import Agent, Bid, BidStatus, MarketState, ResourceBundle
+from syntropism.orchestrator import run_system_loop
 
 
 def init_db():
@@ -113,7 +113,7 @@ def bootstrap_genesis_execution(session: Session):
     session.add(bid)
 
     # Create execution record
-    from bp_agents.models import Execution
+    from syntropism.models import Execution
 
     execution = Execution(
         agent_id=genesis.id,

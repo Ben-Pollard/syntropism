@@ -2,8 +2,8 @@ import os
 import unittest
 from unittest.mock import MagicMock, patch
 
-from bp_agents.models import ResourceBundle
-from bp_agents.sandbox import ExecutionSandbox
+from syntropism.models import ResourceBundle
+from syntropism.sandbox import ExecutionSandbox
 
 
 class TestExecutionSandbox(unittest.TestCase):

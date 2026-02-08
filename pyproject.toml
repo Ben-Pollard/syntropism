@@ -1,5 +1,5 @@
 [project]
-name = "bp_agents"
+name = "syntropism"
 version = "0.1.0"
 description = "Economically motivated self-modifying agents"
 authors = [
@@ -67,4 +67,4 @@ testpaths = ["tests"]
 python_files = ["test_*.py"]
 python_classes = ["Test*"]
 python_functions = ["test_*"]
-addopts = "-v --cov=bp_agents --cov-report=term-missing"
+addopts = "-v --cov=syntropism --cov-report=term-missing"

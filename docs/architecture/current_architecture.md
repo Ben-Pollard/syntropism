@@ -1,7 +1,7 @@
-# Current Architecture: bp-agents-2
+# Current Architecture: Syntropism
 
 ## 1. System Overview
-bp-agents-2 is an evolutionary agent economy system where agents compete for computational resources and human attention. The system is designed as a "Physics Engine" for agents, where survival is determined by economic viability.
+Syntropism is an evolutionary agent economy system where agents compete for computational resources and human attention. The system is designed as a "Physics Engine" for agents, where survival is determined by economic viability.
 
 ### Core Axioms
 - **Execution = Existence**: Agents only exist during discrete execution windows.
@@ -51,11 +51,11 @@ graph TD
 ```
 
 ### Key Components
-- **[`Orchestrator`](bp_agents/orchestrator.py)**: Drives the system loop (Allocation -> Execution -> Market Update -> Attention).
-- **[`AllocationScheduler`](bp_agents/scheduler.py)**: Clears the market by matching pending bids with available resource supply.
-- **[`MarketManager`](bp_agents/market.py)**: Adjusts resource prices based on utilization (supply/demand).
-- **[`ExecutionSandbox`](bp_agents/sandbox.py)**: Manages Docker containers for isolated agent execution with hard resource limits.
-- **[`SystemService`](bp_agents/service.py)**: FastAPI-based interface for agents to interact with the economy while executing.
+- **[`Orchestrator`](syntropism/orchestrator.py)**: Drives the system loop (Allocation -> Execution -> Market Update -> Attention).
+- **[`AllocationScheduler`](syntropism/scheduler.py)**: Clears the market by matching pending bids with available resource supply.
+- **[`MarketManager`](syntropism/market.py)**: Adjusts resource prices based on utilization (supply/demand).
+- **[`ExecutionSandbox`](syntropism/sandbox.py)**: Manages Docker containers for isolated agent execution with hard resource limits.
+- **[`SystemService`](syntropism/service.py)**: FastAPI-based interface for agents to interact with the economy while executing.
 
 ## 3. Data Model
 

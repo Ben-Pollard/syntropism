@@ -2,9 +2,9 @@ import pytest
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
-from bp_agents.database import Base
-from bp_agents.models import Agent, Bid, BidStatus, Execution, MarketState, ResourceBundle
-from bp_agents.scheduler import AllocationScheduler
+from syntropism.database import Base
+from syntropism.models import Agent, Bid, BidStatus, Execution, MarketState, ResourceBundle
+from syntropism.scheduler import AllocationScheduler
 
 
 @pytest.fixture
@@ -65,7 +65,7 @@ def test_place_bid_bundle_not_found(session):
 
 def test_allocation_highest_bidder_wins(session):
     # Setup
-    from bp_agents.market import ResourceType
+    from syntropism.market import ResourceType
 
     agent1 = Agent(credit_balance=100.0)
     agent2 = Agent(credit_balance=100.0)
@@ -97,7 +97,7 @@ def test_allocation_supply_exhaustion(session):
     # Wait, the requirement says "Allocate bundles until supply exhausted".
     # This implies we should check MarketState for supply.
 
-    from bp_agents.market import ResourceType
+    from syntropism.market import ResourceType
 
     # Create 3 bundles of same type (e.g. CPU)
     bundle1 = ResourceBundle(cpu_seconds=1.0, memory_mb=128.0, tokens=0)
@@ -199,7 +199,7 @@ def test_allocation_prevents_negative_balance(session):
 
 def test_allocation_updates_market_utilization(session):
     # Setup
-    from bp_agents.market import ResourceType
+    from syntropism.market import ResourceType
 
     market_state = MarketState(
         resource_type=ResourceType.CPU.value, available_supply=10.0, current_utilization=0.0, current_market_price=1.0
