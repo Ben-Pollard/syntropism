@@ -11,6 +11,9 @@ This module initializes the system and runs the main control loop that:
 
 import os
 import sys
+import threading
+
+import uvicorn
 
 # Add the project root to the path
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
@@ -86,18 +89,18 @@ def bootstrap_genesis_execution(session: Session):
     """
     print("Bootstrapping system - no completed bids found.")
 
-    # Get genesis agent (the one with 1000 credits)
-    genesis = session.query(Agent).filter_by(credit_balance=1000.0).first()
+    # Get genesis agent
+    genesis = session.query(Agent).filter_by(id="genesis").first()
     if not genesis:
         print("ERROR: Genesis agent not found. Please run seed first.")
         return
 
-    # Create a resource bundle for genesis (minimal resources)
+    # Create a resource bundle for genesis (minimal resources with attention)
     bundle = ResourceBundle(
-        cpu_seconds=1.0,
+        cpu_seconds=5.0,
         memory_mb=128.0,
         tokens=1000,
-        attention_share=0.0,
+        attention_share=1.0,  # Allocate full attention to enable human prompting
     )
     session.add(bundle)
     session.flush()
@@ -160,9 +163,30 @@ def main():
             bootstrap_genesis_execution(session)
 
         # Run the main system loop
-        print("\n--- Starting System Loop ---")
-        run_system_loop(session)
-        print("--- System Loop Complete ---")
+        import time
+
+        from syntropism.service import app
+
+        continuous = os.getenv("CONTINUOUS") == "1"
+
+        # Start API server in background
+        def run_api():
+            uvicorn.run(app, host="0.0.0.0", port=8000, log_level="error")
+
+        api_thread = threading.Thread(target=run_api, daemon=True)
+        api_thread.start()
+        print("API Server started on port 8000.")
+
+        while True:
+            print("\n--- Starting System Loop ---")
+            # Refresh session to ensure we have latest state from DB
+            session.expire_all()
+            run_system_loop(session)
+            print("--- System Loop Complete ---")
+
+            if not continuous:
+                break
+            time.sleep(5)
 
     finally:
         session.close()

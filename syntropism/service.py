@@ -1,10 +1,11 @@
 from typing import Annotated
 
 from fastapi import Depends, FastAPI, HTTPException
-from pydantic import BaseModel, model_validator
+from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
 from .attention import AttentionManager
+from .contracts import BidRequest, PromptRequest, RewardScores
 from .dependencies import get_db
 from .economy import EconomicEngine
 from .llm_proxy import router as llm_router
@@ -23,19 +24,8 @@ class TransferRequest(BaseModel):
     memo: str
 
 
-class RewardRequest(BaseModel):
+class RewardRequest(RewardScores):
     prompt_id: str
-    interesting: float
-    useful: float
-    understandable: float
-    reason: str | None = None
-
-
-class PromptRequest(BaseModel):
-    agent_id: str
-    execution_id: str
-    content: dict
-    bid_amount: float
 
 
 class SpawnRequest(BaseModel):
@@ -48,31 +38,6 @@ class MessageRequest(BaseModel):
     from_id: str
     to_id: str
     content: str
-
-
-class BidRequest(BaseModel):
-    agent_id: str
-    amount: float
-    cpu_seconds: float | None = None
-    memory_mb: float | None = None
-    tokens: int | None = None
-    attention_share: float | None = None
-    bundle_id: str | None = None  # Keep for backward compatibility
-
-    @model_validator(mode="after")
-    def check_bundle_or_requirements(self) -> BidRequest:
-        if self.bundle_id:
-            return self
-        if any(
-            [
-                self.cpu_seconds is not None,
-                self.memory_mb is not None,
-                self.tokens is not None,
-                self.attention_share is not None,
-            ]
-        ):
-            return self
-        raise ValueError("Either bundle_id or resource requirements must be provided")
 
 
 @app.get("/market/prices")
@@ -159,6 +124,7 @@ def place_bid(request: BidRequest, db: Annotated[Session, Depends(get_db)]):
             bundle_id = bundle.id
 
         bid = AllocationScheduler.place_bid(db, request.agent_id, bundle_id, request.amount)
+        db.commit()
         return {"status": "success", "bid_id": bid.id}
     except ValueError as e:
         db.rollback()

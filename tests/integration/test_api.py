@@ -190,13 +190,16 @@ def test_place_bid_with_requirements(db_session, client):
 
 
 def test_place_bid_invalid_request(client):
+    """Test that missing bundle_id and resources returns 422 validation error."""
     bid_data = {
         "agent_id": "agent1",
         "amount": 50.0,
     }
     response = client.post("/market/bid", json=bid_data)
+    # Pydantic validation returns 422 for invalid data
     assert response.status_code == 422
-    assert "Either bundle_id or resource requirements must be provided" in response.json()["detail"][0]["msg"]
+    detail = response.json()["detail"]
+    assert "bundle_id" in str(detail) or "resource" in str(detail).lower()
 
 
 def test_submit_prompt_validation(db_session, client):

@@ -1,4 +1,4 @@
-FROM python:3.14-slim
+FROM python:3.12-slim
 
 WORKDIR /app
 
@@ -6,7 +6,7 @@ RUN pip install poetry
 
 COPY pyproject.toml ./
 RUN poetry config virtualenvs.create false \
-    && poetry install --no-interaction --no-ansi
+    && poetry install --no-interaction --no-ansi --no-root
 
 # The agent code will be mounted at /workspace
 WORKDIR /workspace

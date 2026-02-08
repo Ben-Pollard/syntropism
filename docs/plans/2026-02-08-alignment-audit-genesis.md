@@ -18,7 +18,7 @@
 
 ## Action Items
 
-- [ ] **Relocate Services**: Move `syntropism/services.py` to `workspaces/genesis/services.py` and update `workspaces/genesis/main.py` imports.
+- [x] **Relocate Services**: Move `syntropism/services.py` to `workspaces/genesis/services.py` and update `workspaces/genesis/main.py` imports.
 - [ ] **Enhance Sandbox**: Update `ExecutionSandbox` in `syntropism/sandbox.py` to support a `debug` flag that enables `debugpy` and exposes port 5678.
 - [ ] **Integrate LLM Proxy**: Mount the `llm_proxy` router in `syntropism/service.py`.
 - [ ] **Configure Unified Logging**: Update `loguru` configuration in all components to output to `system.log` with component-specific tags.

@@ -6,7 +6,7 @@ from sqlalchemy.orm import Session
 
 from .attention import AttentionManager
 from .market import MarketManager
-from .models import Bid, BidStatus, Execution, Workspace
+from .models import Agent, AgentStatus, Bid, BidStatus, Execution, Workspace
 from .sandbox import ExecutionSandbox
 from .scheduler import AllocationScheduler
 
@@ -41,6 +41,7 @@ def run_system_loop(session: Session):
             "agent_id": agent.id,
             "credits": agent.credit_balance,
             "execution_id": bid.execution_id,
+            "attention_share": bid.resource_bundle.attention_share,
         }
         env_json_path = os.path.join(workspace_path, "env.json")
         with open(env_json_path, "w") as f:
@@ -60,6 +61,11 @@ def run_system_loop(session: Session):
             resource_bundle=bid.resource_bundle,
             runtime_data=env_data,
         )
+
+        # NEW: Print agent logs to system stdout for visibility
+        print(f"\n--- Agent {agent.id} Logs ---")
+        print(logs)
+        print(f"--- Agent {agent.id} Finished (Exit: {exit_code}) ---\n")
 
         # Update bid status to COMPLETED
         bid.status = BidStatus.COMPLETED
@@ -109,5 +115,15 @@ def run_system_loop(session: Session):
             useful=useful,
             understandable=understandable,
         )
+
+    # NEW: Step 5: Death Check - mark agents with no credits as DEAD
+    dead_agents = (
+        session.query(Agent)
+        .filter(Agent.credit_balance <= 0, Agent.status == AgentStatus.ALIVE)
+        .all()
+    )
+    for agent in dead_agents:
+        print(f"Agent {agent.id} has run out of credits and died.")
+        agent.status = AgentStatus.DEAD
 
     session.commit()

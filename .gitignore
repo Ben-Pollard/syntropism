@@ -13,3 +13,5 @@ test_output.txt
 
 *.db
 *.log
+
+database.db-journal

@@ -1,3 +1,19 @@
+"""
+Runtime Handshake Test - E2E Test
+
+This test verifies the complete runtime handshake between the system
+and an agent running in a Docker sandbox. It requires Docker to be running
+and the 'bp-agent-runner:latest' image to exist.
+
+This is marked as an E2E test because it:
+1. Requires Docker daemon running
+2. Requires the bp-agent-runner:latest image
+3. Creates actual resources (workspace directory, agent in DB)
+4. Runs agent code in an isolated container
+
+Mark: pytest.mark.e2e
+"""
+
 import json
 import os
 
@@ -21,6 +37,7 @@ def db_session():
     session.close()
 
 
+@pytest.mark.e2e
 def test_runtime_handshake(db_session):
     # 1. Create genesis agent
     agent = create_genesis_agent(db_session)
@@ -39,6 +56,8 @@ def test_runtime_handshake(db_session):
 
     # 4. Verify
     print(f"Logs: {logs}")
+    if not exit_code == 0:
+        print(logs)
     assert exit_code == 0
     assert f"Genesis Agent {agent.id} active." in logs
     assert f"Balance: {agent.credit_balance}" in logs

@@ -80,7 +80,7 @@ def calculate_bid(balance: float, attention_share: float = 0.0) -> dict:
     """
     bid_amount = balance * 0.10  # 10% of balance
 
-    return {"amount": bid_amount, "cpu": 1, "memory_mb": 128, "tokens": 1000, "attention_share": attention_share}
+    return {"amount": bid_amount, "cpu": 5, "memory_mb": 128, "tokens": 1000, "attention_share": attention_share}
 
 
 def main():
@@ -146,8 +146,12 @@ def main():
 
         # Step 2: Fetch agent balance via EconomicService
         print("\nFetching agent balance via EconomicService...")
-        balance_info = economic_service.place_bid(credits)  # Stub: returns formatted string
-        current_balance = credits  # Use configured credits as balance
+        # Use get_balance instead of place_bid for balance check
+        try:
+            balance_info = economic_service.get_balance()
+            current_balance = balance_info.get("balance", credits)
+        except Exception:
+            current_balance = credits
         print(f"Current balance: {current_balance}")
 
         # Step 3: Calculate bid
@@ -156,20 +160,14 @@ def main():
         bid = calculate_bid(current_balance, attention_share=bid_attention)
 
         print(f"\nPlacing bid via EconomicService: {bid}")
-        bid_result = economic_service.place_bid(bid["amount"])
+        bid_result = economic_service.place_bid(bid["amount"], resources=bid)
         print(f"EconomicService response: {bid_result}")
 
         # Step 4: Send prompt if attention_share > 0 via SocialService
         if attention_share > 0:
             print("\nSending prompt to human via SocialService...")
-            prompt_message = "Hello from Genesis! I am evolving."
-
-            # Use async method for non-blocking human interaction
-            import asyncio
-            async def send_async_prompt():
-                return await social_service.send_async_message(prompt_message)
-
-            prompt_result = asyncio.run(send_async_prompt())
+            prompt_content = {"text": "Hello from Genesis! I am evolving."}
+            prompt_result = social_service.submit_prompt(content=prompt_content, bid_amount=bid["amount"])
             print(f"SocialService response: {prompt_result}")
         else:
             print("\nNo attention allocated, skipping prompt.")

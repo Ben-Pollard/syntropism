@@ -3,12 +3,31 @@ Service Layer Abstractions
 
 This module provides service layer abstractions for the Genesis Agent refactor:
 - CognitionService: wrapper stub for deepagents integration
-- EconomicService: client stub for EconomicEngine with standardized place_bid() method
-- SocialService: asynchronous stub for non-blocking human interaction
+- EconomicService: HTTP client for EconomicEngine with standardized place_bid() method
+- SocialService: HTTP client for human interaction (attention/prompts)
 - WorkspaceService: secure filesystem abstraction with path validation and audit logging
+
+All services make real HTTP calls to the System API (http://system:8000 by default).
+The agent imports shared contracts from /system to ensure API compatibility.
 """
 
+import os
+import sys
+
+# Import shared contracts
+try:
+    # In Sandbox: /system/syntropism/contracts.py
+    sys.path.insert(0, "/system")
+    from syntropism.contracts import BidRequest, PromptRequest
+except ModuleNotFoundError:
+    # In Host (when running from project root)
+    from syntropism.contracts import BidRequest, PromptRequest
+
+import httpx
 from loguru import logger
+
+# System API base URL - set by the runtime
+SYSTEM_SERVICE_URL = os.getenv("SYSTEM_SERVICE_URL", "http://system:8000")
 
 
 class CognitionService:
@@ -24,30 +43,136 @@ class CognitionService:
 
 
 class EconomicService:
-    """Client stub for EconomicEngine with standardized place_bid() method."""
+    """HTTP client for EconomicEngine with standardized place_bid() method."""
 
-    def __init__(self):
-        logger.info('EconomicService initialized')
+    def __init__(self, base_url: str = SYSTEM_SERVICE_URL):
+        self.base_url = base_url
+        logger.info(f'EconomicService initialized with base_url: {base_url}')
 
-    def place_bid(self, bid_amount):
-        """Place a bid using the EconomicEngine."""
-        logger.debug(f'EconomicService.place_bid called with bid: {bid_amount}')
-        return f'Bid of {bid_amount} placed'
+    def _make_request(self, method: str, endpoint: str, data: dict = None) -> dict:
+        """Make an HTTP request to the System API."""
+        url = f"{self.base_url}{endpoint}"
+        logger.debug(f"Making {method} request to {url} with data: {data}")
 
-    def get_balance(self, agent_id: str) -> dict:
-        """Get the agent's current balance."""
-        logger.debug(f'EconomicService.get_balance called for agent: {agent_id}')
-        return {"agent_id": agent_id, "balance": 0.0}
+        try:
+            with httpx.Client() as client:
+                if method.upper() == "GET":
+                    response = client.get(url)
+                elif method.upper() == "POST":
+                    response = client.post(url, json=data)
+                else:
+                    raise ValueError(f"Unsupported HTTP method: {method}")
+
+                response.raise_for_status()
+                return response.json()
+        except httpx.HTTPError as e:
+            logger.error(f"HTTP request failed: {e}")
+            raise
+
+    def place_bid(self, amount: float, resources: dict = None) -> dict:
+        """
+        Place a bid using the EconomicEngine via HTTP.
+        """
+        agent_id = os.getenv("AGENT_ID")
+        if not agent_id:
+            raise ValueError("AGENT_ID environment variable not set")
+
+        # Use shared schema for validation (optional)
+        if resources is None:
+            resources = {}
+
+        req_data = {
+            "agent_id": agent_id,
+            "amount": amount,
+            "cpu_seconds": resources.get("cpu", 0.0),
+            "memory_mb": resources.get("memory", 0.0),
+            "tokens": resources.get("tokens", 0),
+            "attention_share": resources.get("attention_share", 0.0),
+        }
+
+        # Validate using the shared contract (will raise if invalid)
+        BidRequest(**req_data)
+
+        result = self._make_request("POST", "/market/bid", req_data)
+        logger.info(f"Bid placed: {result}")
+        return result
+
+    def get_balance(self, agent_id: str = None) -> dict:
+        """
+        Get the agent's current balance via HTTP.
+        """
+        if not agent_id:
+            agent_id = os.getenv("AGENT_ID")
+        result = self._make_request("GET", f"/economic/balance/{agent_id}")
+        logger.debug(f"Balance retrieved: {result}")
+        return result
 
 
 class SocialService:
-    """Asynchronous stub for non-blocking human interaction."""
+    """HTTP client for human interaction (attention/prompts)."""
 
-    def __init__(self):
-        logger.info('SocialService initialized')
+    def __init__(self, base_url: str = SYSTEM_SERVICE_URL):
+        self.base_url = base_url
+        logger.info(f'SocialService initialized with base_url: {base_url}')
 
-    async def send_async_message(self, message: str) -> str:
-        """Send an asynchronous message for non-blocking human interaction."""
+    def _make_request(self, method: str, endpoint: str, data: dict = None) -> dict:
+        """Make an HTTP request to the System API."""
+        url = f"{self.base_url}{endpoint}"
+        logger.debug(f"Making {method} request to {url} with data: {data}")
+
+        try:
+            with httpx.Client() as client:
+                if method.upper() == "GET":
+                    response = client.get(url)
+                elif method.upper() == "POST":
+                    response = client.post(url, json=data)
+                else:
+                    raise ValueError(f"Unsupported HTTP method: {method}")
+
+                response.raise_for_status()
+                return response.json()
+        except httpx.HTTPError as e:
+            logger.error(f"HTTP request failed: {e}")
+            raise
+
+    def submit_prompt(
+        self,
+        content: dict,
+        bid_amount: float,
+        execution_id: str = None,
+    ) -> dict:
+        """
+        Submit a prompt for human attention via HTTP.
+        """
+        agent_id = os.getenv("AGENT_ID")
+        if not agent_id:
+            raise ValueError("AGENT_ID environment variable not set")
+
+        if not execution_id:
+            execution_id = os.getenv("EXECUTION_ID")
+        if not execution_id:
+            raise ValueError("EXECUTION_ID environment variable not set")
+
+        # Prepare data using the shared contract
+        req_data = {
+            "agent_id": agent_id,
+            "execution_id": execution_id,
+            "content": content,
+            "bid_amount": bid_amount,
+        }
+
+        # Validate using the shared contract
+        PromptRequest(**req_data)
+
+        # Correct endpoint as per System API
+        result = self._make_request("POST", "/human/prompt", req_data)
+        logger.info(f"Prompt submitted: {result}")
+        return result
+
+    def send_async_message(self, message: str) -> str:
+        """
+        Send an asynchronous message for non-blocking human interaction.
+        """
         logger.debug(f'SocialService.send_async_message called with message: {message}')
         return f'Async response for {message}'
 

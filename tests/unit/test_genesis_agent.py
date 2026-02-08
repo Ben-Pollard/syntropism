@@ -1,6 +1,7 @@
 """Tests for Genesis Agent Logic in workspaces/genesis/main.py"""
 
 import json
+import os
 from unittest.mock import mock_open, patch
 
 import pytest
@@ -55,7 +56,7 @@ class TestMarketInteraction:
 
     def test_cognition_service_integration(self, mock_env_json):
         """Agent should use CognitionService for market data integration"""
-        from syntropism.services import CognitionService
+        from workspaces.genesis.services import CognitionService
 
         service = CognitionService()
         result = service.integrate()
@@ -63,12 +64,16 @@ class TestMarketInteraction:
 
     def test_economic_service_get_balance(self, mock_env_json):
         """Agent should use EconomicService to get balance"""
-        from syntropism.services import EconomicService
+        from unittest.mock import patch
+
+        from workspaces.genesis.services import EconomicService
 
         service = EconomicService()
-        result = service.get_balance(mock_env_json["agent_id"])
-        assert result["agent_id"] == mock_env_json["agent_id"]
-        assert "balance" in result
+        # Mock the HTTP call to avoid network errors
+        with patch.object(service, '_make_request', return_value={"agent_id": mock_env_json["agent_id"], "balance": 1000.0}):
+            result = service.get_balance(mock_env_json["agent_id"])
+            assert result["agent_id"] == mock_env_json["agent_id"]
+            assert "balance" in result
 
 
 class TestBiddingLogic:
@@ -104,13 +109,19 @@ class TestBiddingLogic:
 
         assert bid["attention_share"] == 0.0
 
+    @patch.dict(os.environ, {"AGENT_ID": "test-agent-123"})
     def test_economic_service_place_bid(self, mock_env_json):
         """Agent should use EconomicService to place bids"""
-        from syntropism.services import EconomicService
+        from unittest.mock import patch
+
+        from workspaces.genesis.services import EconomicService
 
         service = EconomicService()
-        result = service.place_bid(100.0)
-        assert "Bid of 100.0 placed" in result
+        # Mock the HTTP call to avoid network errors
+        with patch.object(service, '_make_request', return_value={"bid_id": "test-bid", "amount": 100.0, "status": "placed"}):
+            # Provide valid resources to satisfy BidRequest contract
+            result = service.place_bid(100.0, resources={"cpu": 1.0, "memory_mb": 128, "tokens": 1000})
+            assert result["amount"] == 100.0
 
 
 class TestPromptingLogic:
@@ -118,17 +129,15 @@ class TestPromptingLogic:
 
     def test_sends_prompt_when_attention_share_positive(self, mock_env_json_with_attention):
         """Agent should use SocialService for non-blocking human interaction"""
-        import asyncio
-
-        from syntropism.services import SocialService
+        from workspaces.genesis.services import SocialService
 
         service = SocialService()
-        result = asyncio.run(service.send_async_message("Hello from Genesis! I am evolving."))
+        result = service.send_async_message("Hello from Genesis! I am evolving.")
         assert "Async response for" in result
 
     def test_social_service_initialization(self):
         """SocialService should initialize correctly"""
-        from syntropism.services import SocialService
+        from workspaces.genesis.services import SocialService
 
         service = SocialService()
         assert service is not None
@@ -139,7 +148,7 @@ class TestWorkspaceService:
 
     def test_workspace_service_validates_path(self):
         """WorkspaceService should validate paths to prevent directory traversal"""
-        from syntropism.services import WorkspaceService
+        from workspaces.genesis.services import WorkspaceService
 
         service = WorkspaceService()
         # Valid path should not raise
@@ -148,7 +157,7 @@ class TestWorkspaceService:
 
     def test_workspace_service_rejects_invalid_path(self):
         """WorkspaceService should reject paths with directory traversal"""
-        from syntropism.services import WorkspaceService
+        from workspaces.genesis.services import WorkspaceService
 
         service = WorkspaceService()
         with pytest.raises(ValueError):
@@ -156,7 +165,7 @@ class TestWorkspaceService:
 
     def test_workspace_service_audit_log(self):
         """WorkspaceService should log filesystem actions"""
-        from syntropism.services import WorkspaceService
+        from workspaces.genesis.services import WorkspaceService
 
         service = WorkspaceService()
         # Should not raise
@@ -200,14 +209,14 @@ class TestServiceLayerAbstractions:
 
     def test_cognition_service_exists(self):
         """CognitionService should be importable from services module"""
-        from syntropism.services import CognitionService
+        from workspaces.genesis.services import CognitionService
 
         service = CognitionService()
         assert hasattr(service, "integrate")
 
     def test_economic_service_exists(self):
         """EconomicService should be importable from services module"""
-        from syntropism.services import EconomicService
+        from workspaces.genesis.services import EconomicService
 
         service = EconomicService()
         assert hasattr(service, "place_bid")
@@ -215,14 +224,14 @@ class TestServiceLayerAbstractions:
 
     def test_social_service_exists(self):
         """SocialService should be importable from services module"""
-        from syntropism.services import SocialService
+        from workspaces.genesis.services import SocialService
 
         service = SocialService()
         assert hasattr(service, "send_async_message")
 
     def test_workspace_service_exists(self):
         """WorkspaceService should be importable from services module"""
-        from syntropism.services import WorkspaceService
+        from workspaces.genesis.services import WorkspaceService
 
         service = WorkspaceService()
         assert hasattr(service, "validate_path")
@@ -230,7 +239,7 @@ class TestServiceLayerAbstractions:
 
     def test_all_services_loguru_logger(self):
         """All services should use loguru for structured logging"""
-        from syntropism.services import CognitionService, EconomicService, SocialService, WorkspaceService
+        from workspaces.genesis.services import CognitionService, EconomicService, SocialService, WorkspaceService
 
         # Should not raise when initializing
         CognitionService()

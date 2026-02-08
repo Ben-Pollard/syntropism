@@ -18,7 +18,8 @@ dependencies = [
     "fastapi (>=0.115.0,<0.116.0)",
     "httpx (>=0.28.1,<0.29.0)",
     "docker (>=7.1.0,<8.0.0)",
-    "loguru (>=0.7.2,<0.8.0)"
+    "loguru (>=0.7.2,<0.8.0)",
+    "uvicorn (>=0.40.0,<0.41.0)"
 ]
 
 [tool.poetry.scripts]
@@ -72,3 +73,12 @@ python_files = ["test_*.py"]
 python_classes = ["Test*"]
 python_functions = ["test_*"]
 addopts = "-v --cov=syntropism --cov-report=term-missing"
+markers = [
+    "unit: Fast isolated tests",
+    "integration: Tests requiring database or API",
+    "e2e: Full system end-to-end tests"
+]
+filterwarnings = [
+    "ignore::DeprecationWarning",
+    "ignore::ResourceWarning"
+]

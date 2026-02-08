@@ -53,6 +53,7 @@ def create_genesis_agent(session: Session) -> Agent:
         credit_balance=1000.0,
         spawn_lineage=[],
         filesystem_path=os.path.join(workspace_root, "genesis"),
+        agent_id="genesis",
     )
     session.commit()
     session.refresh(agent)
