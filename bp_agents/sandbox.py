@@ -11,9 +11,7 @@ class ExecutionSandbox:
         self.image = image
         self.system_service_url = system_service_url or os.getenv("SYSTEM_SERVICE_URL", "http://system-service:8000")
 
-    def run_agent(
-        self, agent_id: str, workspace_path: str, resource_bundle: ResourceBundle, runtime_data: dict = None
-    ):
+    def run_agent(self, agent_id: str, workspace_path: str, resource_bundle: ResourceBundle, runtime_data: dict = None):
         """
         Runs an agent in a Docker container with specified resource limits.
         """

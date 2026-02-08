@@ -20,26 +20,21 @@ def db_session():
     yield session
     session.close()
 
+
 def test_runtime_handshake(db_session):
     # 1. Create genesis agent
     agent = create_genesis_agent(db_session)
     workspace_path = agent.workspace.filesystem_path
 
     # 2. Prepare runtime data
-    runtime_data = {
-        "agent_id": agent.id,
-        "credits": agent.credit_balance
-    }
+    runtime_data = {"agent_id": agent.id, "credits": agent.credit_balance}
 
     # 3. Run agent in sandbox
     sandbox = ExecutionSandbox(image="bp-agent-runner:latest")
     resource_bundle = ResourceBundle(cpu_seconds=5, memory_mb=512, tokens=1000)
 
     exit_code, logs = sandbox.run_agent(
-        agent_id=agent.id,
-        workspace_path=workspace_path,
-        resource_bundle=resource_bundle,
-        runtime_data=runtime_data
+        agent_id=agent.id, workspace_path=workspace_path, resource_bundle=resource_bundle, runtime_data=runtime_data
     )
 
     # 4. Verify

@@ -17,16 +17,17 @@ class MarketManager:
     MAX_PRICE = 1000.0
     HIGH_UTILIZATION_THRESHOLD = 0.8
     LOW_UTILIZATION_THRESHOLD = 0.2
-    PRICE_ADJUSTMENT_FACTOR = 0.1
+    PRICE_INCREASE_FACTOR = 0.1  # 10% increase for high utilization
+    PRICE_DECREASE_FACTOR = 0.05  # 5% decrease for low utilization
 
     @staticmethod
     def update_prices(session: Session):
         states = session.query(MarketState).all()
         for state in states:
             if state.current_utilization >= MarketManager.HIGH_UTILIZATION_THRESHOLD:
-                state.current_market_price *= 1 + MarketManager.PRICE_ADJUSTMENT_FACTOR
+                state.current_market_price *= 1 + MarketManager.PRICE_INCREASE_FACTOR
             elif state.current_utilization <= MarketManager.LOW_UTILIZATION_THRESHOLD:
-                state.current_market_price *= 1 - MarketManager.PRICE_ADJUSTMENT_FACTOR
+                state.current_market_price *= 1 - MarketManager.PRICE_DECREASE_FACTOR
 
             # Clamp prices
             state.current_market_price = max(

@@ -5,7 +5,11 @@ workspaces/*
 .roomodes
 alignment-skill.skill
  
-bp_agents/__pycache__/
-tests/__pycache__/
+*__pycache__/
+
 .coverage
 test_output.txt
+
+*.db
+
+workspaces/genesis/env.json

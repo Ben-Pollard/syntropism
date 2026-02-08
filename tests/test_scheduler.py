@@ -200,6 +200,7 @@ def test_allocation_prevents_negative_balance(session):
 def test_allocation_updates_market_utilization(session):
     # Setup
     from bp_agents.market import ResourceType
+
     market_state = MarketState(
         resource_type=ResourceType.CPU.value, available_supply=10.0, current_utilization=0.0, current_market_price=1.0
     )

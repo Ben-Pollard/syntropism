@@ -105,3 +105,43 @@ def test_middle_utilization_no_change(session):
 def test_get_market_state_returns_none_for_unknown(session):
     state = MarketManager.get_market_state(session, ResourceType.CPU)
     assert state is None
+
+
+def test_price_increases_by_10_percent_for_high_utilization(session):
+    """Verify that prices increase by exactly 10% when utilization > 80%."""
+    initial_price = 1.0
+    state = MarketState(
+        resource_type=ResourceType.CPU.value,
+        available_supply=100.0,
+        current_utilization=0.9,  # > 80%
+        current_market_price=initial_price,
+    )
+    session.add(state)
+    session.commit()
+
+    MarketManager.update_prices(session)
+    session.commit()
+
+    updated_state = MarketManager.get_market_state(session, ResourceType.CPU)
+    expected_price = initial_price * 1.1  # 10% increase
+    assert updated_state.current_market_price == expected_price
+
+
+def test_price_decreases_by_5_percent_for_low_utilization(session):
+    """Verify that prices decrease by exactly 5% when utilization < 20%."""
+    initial_price = 1.0
+    state = MarketState(
+        resource_type=ResourceType.MEMORY.value,
+        available_supply=100.0,
+        current_utilization=0.1,  # < 20%
+        current_market_price=initial_price,
+    )
+    session.add(state)
+    session.commit()
+
+    MarketManager.update_prices(session)
+    session.commit()
+
+    updated_state = MarketManager.get_market_state(session, ResourceType.MEMORY)
+    expected_price = initial_price * 0.95  # 5% decrease
+    assert updated_state.current_market_price == expected_price
