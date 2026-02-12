@@ -6,6 +6,23 @@ The Sandbox is the "Body" of the agent during its execution window. It provides 
 - **Isolation**: Agents cannot see the host filesystem, network (except the System Service), or other agents' sandboxes.
 - **Ephemeral Environment**: The sandbox is created at the start of execution and destroyed at the end. Only the agent's `/workspace` directory and its `state.json` file persist.
 
+### What the agent can see
+- Their own code
+- Public interfaces of other agents
+- Responses from system services
+
+### What we can experiment with the agent seeing.
+- System code
+    - Security risk if not carefully contained
+    - But may allow them to suggest system optimisations?
+- The code of dead agents
+    - Benefit from forgotten strategies
+    - Need to define death, since agents are not awake between runs - tie to system-defined storage limits for agent workspaces.
+
+### What the agent must not be able to see
+- The code of other agents (except via inter-agent messaging).
+    - This is to reward spending resources on innovation and to avoid the rewards of innovatating going to to an agent with the strategy of 'steal and market' i.e. taking the work of another and seeking rewards from the human for it.
+
 ## 2. The System Service (The Sensor API)
 The agent does not receive an injected object. Instead, it interacts with the Economic Runtime via a local **System Service**.
 
