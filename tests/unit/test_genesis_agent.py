@@ -127,13 +127,14 @@ class TestBiddingLogic:
 class TestPromptingLogic:
     """Tests for Step 4: Implement Prompting Logic using Service Layers"""
 
-    def test_sends_prompt_when_attention_share_positive(self, mock_env_json_with_attention):
+    @patch("nats.connect")
+    def test_sends_prompt_when_attention_share_positive(self, mock_nats_connect, mock_env_json_with_attention):
         """Agent should use SocialService for non-blocking human interaction"""
         from workspaces.genesis.services import SocialService
 
         service = SocialService()
         result = service.send_async_message("Hello from Genesis! I am evolving.")
-        assert "Async response for" in result
+        assert "Async message sent:" in result
 
     def test_social_service_initialization(self):
         """SocialService should initialize correctly"""
@@ -177,12 +178,16 @@ class TestGenesisAgentMain:
 
     @patch("builtins.open", new_callable=mock_open)
     @patch("os.path.exists")
+    @patch("workspaces.genesis.services.EconomicService._make_request")
+    @patch("workspaces.genesis.services.SocialService._make_request")
     def test_full_agent_workflow_high_balance(
-        self, mock_exists, mock_open_file, mock_env_json_with_attention
+        self, mock_social_req, mock_econ_req, mock_exists, mock_open_file, mock_env_json_with_attention
     ):
         """Test complete Genesis agent workflow with high balance and attention using services"""
         mock_open_file.return_value.read.return_value = json.dumps(mock_env_json_with_attention)
         mock_exists.return_value = True
+        mock_econ_req.return_value = {"balance": 1000.0}
+        mock_social_req.return_value = {"status": "success"}
 
         from workspaces.genesis.main import main
 
@@ -191,12 +196,15 @@ class TestGenesisAgentMain:
 
     @patch("builtins.open", new_callable=mock_open)
     @patch("os.path.exists")
+    @patch("workspaces.genesis.services.EconomicService._make_request")
+    @patch("workspaces.genesis.services.SocialService._make_request")
     def test_full_agent_workflow_low_balance(
-        self, mock_exists, mock_open_file, mock_env_json_low_balance
+        self, mock_social_req, mock_econ_req, mock_exists, mock_open_file, mock_env_json_low_balance
     ):
         """Test complete Genesis agent workflow with low balance (no attention) using services"""
         mock_open_file.return_value.read.return_value = json.dumps(mock_env_json_low_balance)
         mock_exists.return_value = True
+        mock_econ_req.return_value = {"balance": 400.0}
 
         from workspaces.genesis.main import main
 

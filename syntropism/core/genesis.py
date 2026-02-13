@@ -3,7 +3,7 @@ import uuid
 
 from sqlalchemy.orm import Session
 
-from .models import Agent, AgentStatus, Transaction, Workspace
+from syntropism.domain.models import Agent, AgentStatus, Transaction, Workspace
 
 SPAWN_COST = 10.0
 

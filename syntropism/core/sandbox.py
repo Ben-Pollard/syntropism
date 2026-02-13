@@ -3,7 +3,7 @@ import os
 
 import docker
 
-from .models import ResourceBundle
+from syntropism.domain.models import ResourceBundle
 
 # Determine the project root (where syntropism/ is located)
 PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -39,6 +39,7 @@ class ExecutionSandbox:
         environment = {
             "AGENT_ID": agent_id,
             "SYSTEM_SERVICE_URL": self.system_service_url,
+            "NATS_URL": os.getenv("NATS_URL", "nats://host.docker.internal:4222"),
             "PYTHONPATH": "/system:$PYTHONPATH",  # Ensure /system is in path
         }
 

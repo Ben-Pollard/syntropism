@@ -18,16 +18,20 @@ import sys
 try:
     # In Sandbox: /system/syntropism/contracts.py
     sys.path.insert(0, "/system")
-    from syntropism.contracts import BidRequest, PromptRequest
+    from syntropism.domain.contracts import BidRequest, PromptRequest
 except ModuleNotFoundError:
     # In Host (when running from project root)
-    from syntropism.contracts import BidRequest, PromptRequest
+    from syntropism.domain.contracts import BidRequest, PromptRequest
 
-import httpx
+import asyncio
+import json
+
+import nats
 from loguru import logger
 
 # System API base URL - set by the runtime
 SYSTEM_SERVICE_URL = os.getenv("SYSTEM_SERVICE_URL", "http://system:8000")
+NATS_URL = os.getenv("NATS_URL", "nats://nats:4222")
 
 
 class CognitionService:
@@ -43,41 +47,32 @@ class CognitionService:
 
 
 class EconomicService:
-    """HTTP client for EconomicEngine with standardized place_bid() method."""
+    """NATS client for EconomicEngine with standardized place_bid() method."""
 
-    def __init__(self, base_url: str = SYSTEM_SERVICE_URL):
-        self.base_url = base_url
-        logger.info(f'EconomicService initialized with base_url: {base_url}')
+    def __init__(self, nats_url: str = NATS_URL):
+        self.nats_url = nats_url
+        logger.info(f'EconomicService initialized with nats_url: {nats_url}')
 
-    def _make_request(self, method: str, endpoint: str, data: dict = None) -> dict:
-        """Make an HTTP request to the System API."""
-        url = f"{self.base_url}{endpoint}"
-        logger.debug(f"Making {method} request to {url} with data: {data}")
+    async def _make_request(self, subject: str, data: dict = None) -> dict:
+        """Make a NATS request to the System API."""
+        logger.debug(f"Making NATS request to {subject} with data: {data}")
 
+        nc = await nats.connect(self.nats_url, connect_timeout=2)
         try:
-            with httpx.Client() as client:
-                if method.upper() == "GET":
-                    response = client.get(url)
-                elif method.upper() == "POST":
-                    response = client.post(url, json=data)
-                else:
-                    raise ValueError(f"Unsupported HTTP method: {method}")
-
-                response.raise_for_status()
-                return response.json()
-        except httpx.HTTPError as e:
-            logger.error(f"HTTP request failed: {e}")
-            raise
+            payload = json.dumps(data).encode() if data else b""
+            response = await nc.request(subject, payload, timeout=2)
+            return json.loads(response.data)
+        finally:
+            await nc.close()
 
     def place_bid(self, amount: float, resources: dict = None) -> dict:
         """
-        Place a bid using the EconomicEngine via HTTP.
+        Place a bid using the EconomicEngine via NATS.
         """
         agent_id = os.getenv("AGENT_ID")
         if not agent_id:
             raise ValueError("AGENT_ID environment variable not set")
 
-        # Use shared schema for validation (optional)
         if resources is None:
             resources = {}
 
@@ -90,50 +85,66 @@ class EconomicService:
             "attention_share": resources.get("attention_share", 0.0),
         }
 
-        # Validate using the shared contract (will raise if invalid)
+        # Validate using the shared contract
         BidRequest(**req_data)
 
-        result = self._make_request("POST", "/market/bid", req_data)
+        # We use a helper to run the async request in a sync context if needed,
+        # but ideally the agent should be async.
+        # For now, we'll use asyncio.run if no loop is running, or run_until_complete.
+        try:
+            loop = asyncio.get_event_loop()
+            if loop.is_running():
+                # This is a problem if we are in a sync method called from async
+                # But for now let's assume we can use a future or the agent is async.
+                # If the agent is sync, we might need a separate thread or just use asyncio.run
+                result = asyncio.run_coroutine_threadsafe(self._make_request("market.bid", req_data), loop).result()
+            else:
+                result = asyncio.run(self._make_request("market.bid", req_data))
+        except RuntimeError:
+            result = asyncio.run(self._make_request("market.bid", req_data))
+
         logger.info(f"Bid placed: {result}")
         return result
 
     def get_balance(self, agent_id: str = None) -> dict:
         """
-        Get the agent's current balance via HTTP.
+        Get the agent's current balance via NATS.
         """
         if not agent_id:
             agent_id = os.getenv("AGENT_ID")
-        result = self._make_request("GET", f"/economic/balance/{agent_id}")
+
+        subject = f"economic.balance.{agent_id}"
+        try:
+            loop = asyncio.get_event_loop()
+            if loop.is_running():
+                result = asyncio.run_coroutine_threadsafe(self._make_request(subject), loop).result()
+            else:
+                result = asyncio.run(self._make_request(subject))
+        except RuntimeError:
+            result = asyncio.run(self._make_request(subject))
+
         logger.debug(f"Balance retrieved: {result}")
         return result
 
 
 class SocialService:
-    """HTTP client for human interaction (attention/prompts)."""
+    """NATS client for human interaction (attention/prompts)."""
 
-    def __init__(self, base_url: str = SYSTEM_SERVICE_URL):
-        self.base_url = base_url
-        logger.info(f'SocialService initialized with base_url: {base_url}')
+    def __init__(self, nats_url: str = NATS_URL):
+        self.nats_url = nats_url
+        logger.info(f'SocialService initialized with nats_url: {nats_url}')
 
-    def _make_request(self, method: str, endpoint: str, data: dict = None) -> dict:
-        """Make an HTTP request to the System API."""
-        url = f"{self.base_url}{endpoint}"
-        logger.debug(f"Making {method} request to {url} with data: {data}")
+    async def _make_request(self, subject: str, data: dict = None) -> dict:
+        """Make a NATS request to the System API."""
+        logger.debug(f"Making NATS request to {subject} with data: {data}")
 
+        nc = await nats.connect(self.nats_url, connect_timeout=2)
         try:
-            with httpx.Client() as client:
-                if method.upper() == "GET":
-                    response = client.get(url)
-                elif method.upper() == "POST":
-                    response = client.post(url, json=data)
-                else:
-                    raise ValueError(f"Unsupported HTTP method: {method}")
-
-                response.raise_for_status()
-                return response.json()
-        except httpx.HTTPError as e:
-            logger.error(f"HTTP request failed: {e}")
-            raise
+            payload = json.dumps(data).encode() if data else b""
+            response = await nc.request(subject, payload, timeout=2)
+            return json.loads(response.data)
+        finally:
+            await nc.close()
 
     def submit_prompt(
         self,
@@ -142,7 +153,7 @@ class SocialService:
         execution_id: str = None,
     ) -> dict:
         """
-        Submit a prompt for human attention via HTTP.
+        Submit a prompt for human attention via NATS.
         """
         agent_id = os.getenv("AGENT_ID")
         if not agent_id:
@@ -164,8 +175,15 @@ class SocialService:
         # Validate using the shared contract
         PromptRequest(**req_data)
 
-        # Correct endpoint as per System API
-        result = self._make_request("POST", "/human/prompt", req_data)
+        try:
+            loop = asyncio.get_event_loop()
+            if loop.is_running():
+                result = asyncio.run_coroutine_threadsafe(self._make_request("human.prompt", req_data), loop).result()
+            else:
+                result = asyncio.run(self._make_request("human.prompt", req_data))
+        except RuntimeError:
+            result = asyncio.run(self._make_request("human.prompt", req_data))
+
         logger.info(f"Prompt submitted: {result}")
         return result
 
@@ -174,7 +192,31 @@ class SocialService:
         Send an asynchronous message for non-blocking human interaction.
         """
         logger.debug(f'SocialService.send_async_message called with message: {message}')
-        return f'Async response for {message}'
+
+        agent_id = os.getenv("AGENT_ID")
+        payload = {
+            "from_id": agent_id,
+            "to_id": "human", # Default to human for now
+            "content": message
+        }
+
+        try:
+            loop = asyncio.get_event_loop()
+            if loop.is_running():
+                asyncio.run_coroutine_threadsafe(self._publish("social.message", payload), loop)
+            else:
+                asyncio.run(self._publish("social.message", payload))
+        except RuntimeError:
+            asyncio.run(self._publish("social.message", payload))
+
+        return f'Async message sent: {message}'
+
+    async def _publish(self, subject: str, data: dict):
+        nc = await nats.connect(self.nats_url, connect_timeout=2)
+        try:
+            await nc.publish(subject, json.dumps(data).encode())
+        finally:
+            await nc.close()
 
 
 class WorkspaceService:

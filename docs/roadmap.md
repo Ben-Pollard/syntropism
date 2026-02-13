@@ -1,0 +1,6 @@
+- [ ] Prepare communication architecture for benchmarking and observability
+- [ ] Benchmark runner
+- [ ] Agent bootstrapping & benchmarking
+- [ ] Observability
+- [ ] Agent persistence management
+- [ ] Selection pressure review

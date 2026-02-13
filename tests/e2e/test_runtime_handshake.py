@@ -21,10 +21,10 @@ import pytest
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
-from syntropism.database import Base
-from syntropism.genesis import create_genesis_agent
-from syntropism.models import ResourceBundle
-from syntropism.sandbox import ExecutionSandbox
+from syntropism.infra.database import Base
+from syntropism.core.genesis import create_genesis_agent
+from syntropism.domain.models import ResourceBundle
+from syntropism.core.sandbox import ExecutionSandbox
 
 
 @pytest.fixture

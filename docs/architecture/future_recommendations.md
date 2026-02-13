@@ -1,57 +1,53 @@
 # Architectural Recommendations: bp-agents-2
 
-This document provides recommendations for the evolution of the `bp-agents-2` system, based on an evaluation of the current architecture against industry standards (SOLID, Clean Architecture, Twelve-Factor App) and Agent-Based System patterns.
+This document provides recommendations for the evolution of the `bp-agents-2` system, prioritizing developer experience and observability while maintaining the system's "laptop-bound" simplicity.
 
-## 1. Scalability
-
-### Current State
-The system is currently a monolith with a sequential execution loop. The `Orchestrator` runs agents one by one in a single process.
-
-### Recommendations
-- **Asynchronous Execution**: Transition from sequential execution to a task-queue based model (e.g., Celery, RabbitMQ, or Temporal). This allows multiple agents to run in parallel across different worker nodes.
-- **Database Scaling**: Move from SQLite to a client-server database like PostgreSQL to support concurrent access from multiple worker nodes.
-- **Stateless Orchestrator**: Ensure the orchestrator can be horizontally scaled by moving all state (including the "current cycle" status) into the database or a distributed cache (Redis).
-- **Resource Metering Service**: Decouple resource tracking from the main database to handle high-frequency updates during agent execution.
-
-## 2. Security
+## 1. Scalability & Performance
 
 ### Current State
-Agents run in Docker containers with resource limits. Communication is via a FastAPI service.
+The system uses NATS for internal communication, enabling event-driven patterns. The `Orchestrator` remains a synchronous loop, which is appropriate for the current "laptop-bound" phase.
 
 ### Recommendations
-- **Network Isolation**: Implement strict Docker network policies. Agents should only be able to talk to the `SystemService` and not to each other or the host's internal network unless explicitly permitted.
-- **API Authentication**: Implement per-agent API keys or JWTs for the `SystemService`. Currently, the `agent_id` is passed in the request body, which can be easily spoofed by a malicious agent.
-- **Workspace Sanitization**: Implement stricter validation on workspace paths and file operations in `genesis.py` to prevent path traversal attacks.
-- **Read-Only Root FS**: Run agent containers with a read-only root filesystem, only allowing writes to the designated `/workspace` volume.
+- **NATS for Internal Events**: Continue using NATS for all internal agent-system interactions to support benchmarking and tracing.
+- **Keep Synchronous Orchestration**: Maintain the current sequential execution loop to preserve easy debugging and predictable resource allocation on a single machine.
+- **SQLite for Persistence**: Continue using SQLite; it is sufficient for current loads and simplifies the developer setup.
 
-## 3. Resilience
+## 2. Security & Isolation
 
 ### Current State
-The system uses a single loop. If the orchestrator crashes, the entire system stops. Agent failures are logged but don't trigger automatic retries or recovery.
+Agents run in Docker containers with bind-mounted workspaces. Communication is via NATS.
 
 ### Recommendations
-- **Process Supervision**: Use a process manager (like `systemd` or `supervisord`) or a container orchestrator (Kubernetes) to ensure the system services automatically restart on failure.
-- **Idempotent Operations**: Ensure that the `AllocationCycle` and `Execution` steps are idempotent. If the system crashes mid-cycle, it should be able to resume without double-charging agents or skipping executions.
-- **Circuit Breakers**: Implement circuit breakers for external dependencies (like LLM providers for token counting) to prevent a single failing service from bringing down the entire economy.
-- **Dead Letter Queues**: For failed agent executions that are not due to resource exhaustion, move them to a "dead letter" state for manual inspection or automated debugging.
+- **Workspace Sanitization**: Implement stricter validation on workspace paths in `WorkspaceService` to prevent path traversal, even with bind mounts.
+- **NATS Subject Namespacing**: Use structured subject namespacing (e.g., `agent.<id>.economic.balance`) to prepare for future isolation, even if full NATS accounts are not yet implemented.
+- **Read-Only Root FS**: Run agent containers with a read-only root filesystem to prevent persistent changes outside the `/workspace` volume.
 
-## 4. Maintainability
+## 3. Resilience & Observability
 
 ### Current State
-The system follows a modular structure but has some tight coupling between business logic and database models (Active Record-like patterns).
+The system uses NATS and OTEL. NATS handlers are hosted within the FastAPI process.
 
 ### Recommendations
-- **Dependency Injection**: Use a proper dependency injection framework or pattern. Currently, classes like `ExecutionSandbox` are instantiated directly inside `Orchestrator`, making unit testing difficult.
-- **Repository Pattern**: Introduce a Repository layer to abstract database operations. This will decouple the business logic (Economy, Market) from SQLAlchemy models.
-- **Domain-Driven Design (DDD)**: Clearly define the "Economic Domain" vs. the "Execution Domain". Move logic out of static methods in `EconomicEngine` and `MarketManager` into domain services.
-- **Configuration Management**: Move hardcoded values (like `SPAWN_COST` or `PRICE_INCREASE_FACTOR`) into environment variables or a configuration file, following Twelve-Factor App principles.
-- **Automated Migrations**: Use `alembic` for database schema migrations instead of `Base.metadata.create_all()`.
+- **OTEL for Reasoning Traces**: Use OpenTelemetry to trace not just system calls, but also internal agent reasoning steps (e.g., LLM prompts/responses) to provide a complete audit trail.
+- **NATS Event Logging**: Use NATS as a real-time event log for the `BenchmarkRunner`, allowing for live monitoring of agent progress during tests.
+- **Graceful Shutdown**: Ensure NATS connections and OTEL exporters are gracefully closed during system shutdown to prevent data loss in traces.
+
+## 4. Maintainability & DX
+
+### Current State
+The system is in a hybrid state with both FastAPI REST and NATS.
+
+### Recommendations
+- **Cognitive Gateway Pattern**: Formalize the FastAPI service as a "Cognitive Gateway". It should handle external REST/MCP integrations and translate them into NATS events for the agents.
+- **Internal NATS Standardization**: Standardize all *internal* system services (Economy, Market, Social) on NATS to eliminate the "two ways of communicating" smell for core logic.
+- **Test-Integrated Benchmarks**: Integrate the `BenchmarkRunner` directly into `pytest` to ensure that every architectural change is validated against the benchmark scenarios.
+- **Unified Logging/Tracing**: Consolidate `system.log` and OTEL traces so that log messages include `trace_id` for easy cross-referencing in developer tools.
 
 ## Summary of Alignment
 
 | Standard | Status | Key Gap |
 | :--- | :--- | :--- |
-| **SOLID** | Partial | High coupling in `Orchestrator`; static methods hinder OCP/DIP. |
-| **Clean Architecture** | Partial | Business logic is mixed with framework (SQLAlchemy/FastAPI) concerns. |
-| **Twelve-Factor App** | Partial | Hardcoded configs; local filesystem dependency for workspaces. |
-| **Agent Patterns** | Strong | Excellent implementation of resource scarcity and economic survival. |
+| **SOLID** | Improved | NATS handlers decouple service logic from HTTP concerns. |
+| **Clean Architecture** | Improved | Clearer boundary between internal (NATS) and external (REST) communication. |
+| **Twelve-Factor App** | Partial | Local filesystem dependency (bind mounts) is a conscious choice for DX. |
+| **Agent Patterns** | Strong | Excellent observability and benchmarking support. |

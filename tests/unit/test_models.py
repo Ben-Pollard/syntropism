@@ -2,8 +2,8 @@ import pytest
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
-from syntropism.database import Base
-from syntropism.models import (
+from syntropism.infra.database import Base
+from syntropism.domain.models import (
     Agent,
     AgentStatus,
     Bid,

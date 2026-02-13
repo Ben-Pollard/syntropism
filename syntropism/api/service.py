@@ -1,17 +1,34 @@
+import os
 from typing import Annotated
 
 from fastapi import Depends, FastAPI, HTTPException
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
-from .attention import AttentionManager
-from .contracts import BidRequest, PromptRequest, RewardScores
-from .dependencies import get_db
-from .economy import EconomicEngine
-from .llm_proxy import router as llm_router
-from .models import MarketState, ResourceBundle
+from syntropism.domain.attention import AttentionManager
+from syntropism.domain.contracts import BidRequest, PromptRequest, RewardScores
+from syntropism.api.dependencies import get_db
+from syntropism.domain.economy import EconomicEngine
+from syntropism.infra.llm_proxy import router as llm_router
+from syntropism.domain.market import MarketManager
+from syntropism.domain.models import MarketState, ResourceBundle
+from syntropism.domain.social import SocialManager
 
 app = FastAPI(title="BP Agents API")
+
+@app.on_event("startup")
+async def startup_event():
+    # Start NATS handlers
+    nats_url = os.getenv("NATS_URL", "nats://localhost:4222")
+    app.state.economy_nc = await EconomicEngine().run_nats(nats_url)
+    app.state.market_nc = await MarketManager().run_nats(nats_url)
+    app.state.social_nc = await SocialManager().run_nats(nats_url)
+
+@app.on_event("shutdown")
+async def shutdown_event():
+    await app.state.economy_nc.close()
+    await app.state.market_nc.close()
+    await app.state.social_nc.close()
 
 # Mount LLM proxy router
 app.include_router(llm_router, prefix="/api/v1", tags=["llm"])
@@ -82,7 +99,7 @@ def submit_prompt(request: PromptRequest, db: Annotated[Session, Depends(get_db)
 @app.post("/social/spawn")
 def spawn_agent(request: SpawnRequest, db: Annotated[Session, Depends(get_db)]):
     try:
-        from .genesis import spawn_child_agent
+        from syntropism.core.genesis import spawn_child_agent
 
         child = spawn_child_agent(db, request.parent_id, request.initial_credits, request.payload)
         return {"status": "success", "child_id": child.id, "workspace_id": child.workspace_id}
@@ -93,7 +110,7 @@ def spawn_agent(request: SpawnRequest, db: Annotated[Session, Depends(get_db)]):
 
 @app.post("/social/message")
 def send_message(request: MessageRequest, db: Annotated[Session, Depends(get_db)]):
-    from .models import Message
+    from syntropism.domain.models import Message
 
     try:
         message = Message(from_agent_id=request.from_id, to_agent_id=request.to_id, content=request.content)
@@ -107,7 +124,7 @@ def send_message(request: MessageRequest, db: Annotated[Session, Depends(get_db)
 
 @app.post("/market/bid")
 def place_bid(request: BidRequest, db: Annotated[Session, Depends(get_db)]):
-    from .scheduler import AllocationScheduler
+    from syntropism.core.scheduler import AllocationScheduler
 
     try:
         bundle_id = request.bundle_id

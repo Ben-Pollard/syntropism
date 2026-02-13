@@ -6,9 +6,9 @@ import pytest
 import uvicorn
 
 from syntropism.cli import bootstrap_genesis_execution, seed_genesis_agent, seed_market_state
-from syntropism.database import Base, SessionLocal, engine
-from syntropism.models import AgentStatus, Bid, BidStatus
-from syntropism.orchestrator import run_system_loop
+from syntropism.infra.database import Base, SessionLocal, engine
+from syntropism.domain.models import AgentStatus, Bid, BidStatus
+from syntropism.core.orchestrator import run_system_loop
 
 
 @pytest.fixture(scope="module")
@@ -29,7 +29,7 @@ def server(db_path, server_port):
 
     os.environ["SQLALCHEMY_DATABASE_URL"] = f"sqlite:///{db_path}"
 
-    from syntropism.service import app
+    from syntropism.api.service import app
 
     def run_server():
         uvicorn.run(app, host="0.0.0.0", port=server_port, log_level="error")
@@ -74,7 +74,7 @@ def test_survival_loop(db_session, monkeypatch):
     # 3. Verify agent executed once
     db_session.commit()
     db_session.refresh(agent)
-    from syntropism.models import Execution
+    from syntropism.domain.models import Execution
     executions = db_session.query(Execution).filter_by(agent_id=agent.id, status="COMPLETED").count()
     assert executions == 1
 
@@ -96,7 +96,7 @@ def test_human_interaction(db_session, monkeypatch):
     agent = seed_genesis_agent(db_session)
 
     # 2. Bootstrap with attention_share=1.0
-    from syntropism.models import Bid, BidStatus, Execution, ResourceBundle
+    from syntropism.domain.models import Bid, BidStatus, Execution, ResourceBundle
     bundle = ResourceBundle(
         cpu_seconds=5.0,
         memory_mb=128.0,
@@ -142,7 +142,7 @@ def test_agent_spawning(db_session):
     parent = seed_genesis_agent(db_session)
 
     # 2. Manually trigger spawn
-    from syntropism.genesis import spawn_child_agent
+    from syntropism.core.genesis import spawn_child_agent
     payload = {
         "main.py": "print('Child agent running!')",
     }
@@ -158,7 +158,7 @@ def test_agent_spawning(db_session):
 
     # 5. Run loop and verify child can execute (if it has a bid)
     # Create a bid for the child
-    from syntropism.models import Bid, BidStatus, Execution, ResourceBundle
+    from syntropism.domain.models import Bid, BidStatus, Execution, ResourceBundle
     bundle = ResourceBundle(cpu_seconds=5.0, memory_mb=128.0, tokens=1000)
     db_session.add(bundle)
     db_session.flush()
@@ -194,15 +194,15 @@ def test_agent_spawning(db_session):
 @pytest.mark.e2e
 def test_bid_competition(db_session):
     # 1. Setup two agents
-    from syntropism.genesis import _create_agent_with_workspace
+    from syntropism.core.genesis import _create_agent_with_workspace
     workspace_root = os.path.join(os.getcwd(), "workspaces")
     a1 = _create_agent_with_workspace(db_session, 100.0, [], os.path.join(workspace_root, "a1"), "agent1")
     a2 = _create_agent_with_workspace(db_session, 100.0, [], os.path.join(workspace_root, "a2"), "agent2")
     db_session.commit()
 
     # 2. Place bids for same limited resource (e.g. Attention)
-    from syntropism.models import Bid, BidStatus, ResourceBundle
-    from syntropism.scheduler import AllocationScheduler
+    from syntropism.domain.models import Bid, BidStatus, ResourceBundle
+    from syntropism.core.scheduler import AllocationScheduler
 
     # A1 bids 10 for attention
     b1_bundle = ResourceBundle(cpu_seconds=1.0, memory_mb=128.0, tokens=1000, attention_share=1.0)
@@ -232,14 +232,14 @@ def test_bid_competition(db_session):
 @pytest.mark.e2e
 def test_agent_death(db_session):
     # 1. Setup agent with 1 credit
-    from syntropism.genesis import _create_agent_with_workspace
+    from syntropism.core.genesis import _create_agent_with_workspace
     workspace_root = os.path.join(os.getcwd(), "workspaces")
     agent = _create_agent_with_workspace(db_session, 1.0, [], os.path.join(workspace_root, "poor_agent"), "poor_agent")
     db_session.commit()
 
     # 2. Place bid for 1 credit
-    from syntropism.models import BidStatus, Execution, ResourceBundle
-    from syntropism.scheduler import AllocationScheduler
+    from syntropism.domain.models import BidStatus, Execution, ResourceBundle
+    from syntropism.core.scheduler import AllocationScheduler
 
     bundle = ResourceBundle(cpu_seconds=1.0, memory_mb=128.0, tokens=1000)
     db_session.add(bundle)

@@ -11,11 +11,11 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import Session, sessionmaker
 from sqlalchemy.pool import StaticPool
 
-from syntropism.attention import AttentionManager
-from syntropism.database import Base
-from syntropism.genesis import create_genesis_agent
-from syntropism.models import Execution, PromptStatus, ResourceBundle
-from syntropism.scheduler import AllocationScheduler
+from syntropism.domain.attention import AttentionManager
+from syntropism.infra.database import Base
+from syntropism.core.genesis import create_genesis_agent
+from syntropism.domain.models import Execution, PromptStatus, ResourceBundle
+from syntropism.core.scheduler import AllocationScheduler
 
 
 @pytest.fixture

@@ -2,9 +2,9 @@ import pytest
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
-from syntropism.database import Base
-from syntropism.market import MarketManager, ResourceType
-from syntropism.models import MarketState
+from syntropism.infra.database import Base
+from syntropism.domain.market import MarketManager, ResourceType
+from syntropism.domain.models import MarketState
 
 
 @pytest.fixture

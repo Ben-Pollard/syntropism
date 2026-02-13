@@ -20,11 +20,11 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 from sqlalchemy.orm import Session
 
-from syntropism.database import Base, SessionLocal, engine
-from syntropism.genesis import create_genesis_agent
-from syntropism.market import ResourceType
-from syntropism.models import Agent, Bid, BidStatus, MarketState, ResourceBundle
-from syntropism.orchestrator import run_system_loop
+from syntropism.infra.database import Base, SessionLocal, engine
+from syntropism.core.genesis import create_genesis_agent
+from syntropism.domain.market import ResourceType
+from syntropism.domain.models import Agent, Bid, BidStatus, MarketState, ResourceBundle
+from syntropism.core.orchestrator import run_system_loop
 
 
 def init_db():
@@ -116,7 +116,7 @@ def bootstrap_genesis_execution(session: Session):
     session.add(bid)
 
     # Create execution record
-    from syntropism.models import Execution
+    from syntropism.domain.models import Execution
 
     execution = Execution(
         agent_id=genesis.id,
@@ -165,7 +165,7 @@ def main():
         # Run the main system loop
         import time
 
-        from syntropism.service import app
+        from syntropism.api.service import app
 
         continuous = os.getenv("CONTINUOUS") == "1"
 

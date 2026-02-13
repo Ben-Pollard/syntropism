@@ -1,7 +1,7 @@
 from sqlalchemy.orm import Session
 
-from .market import ResourceType
-from .models import Agent, Bid, BidStatus, Execution, MarketState, ResourceBundle
+from syntropism.domain.market import ResourceType
+from syntropism.domain.models import Agent, Bid, BidStatus, Execution, MarketState, ResourceBundle
 
 
 class AllocationScheduler:

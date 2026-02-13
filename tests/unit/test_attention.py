@@ -4,11 +4,11 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import StaticPool
 
-from syntropism.attention import AttentionManager
-from syntropism.database import Base
-from syntropism.dependencies import get_db
-from syntropism.models import Agent, Execution, Prompt, PromptStatus, ResourceBundle, Response, Transaction
-from syntropism.service import app
+from syntropism.domain.attention import AttentionManager
+from syntropism.infra.database import Base
+from syntropism.api.dependencies import get_db
+from syntropism.domain.models import Agent, Execution, Prompt, PromptStatus, ResourceBundle, Response, Transaction
+from syntropism.api.service import app
 
 
 @pytest.fixture

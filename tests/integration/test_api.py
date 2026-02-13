@@ -4,10 +4,10 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import StaticPool
 
-from syntropism.database import Base
-from syntropism.dependencies import get_db
-from syntropism.models import Agent
-from syntropism.service import app
+from syntropism.infra.database import Base
+from syntropism.api.dependencies import get_db
+from syntropism.domain.models import Agent
+from syntropism.api.service import app
 
 
 @pytest.fixture
@@ -139,7 +139,7 @@ def test_send_message(db_session, client):
 
 
 def test_place_bid(db_session, client):
-    from syntropism.models import ResourceBundle
+    from syntropism.domain.models import ResourceBundle
 
     # Create test agent and bundle
     agent = Agent(id="agent1", credit_balance=100.0)
@@ -179,7 +179,7 @@ def test_place_bid_with_requirements(db_session, client):
     assert "bid_id" in response.json()
 
     # Verify ResourceBundle was created
-    from syntropism.models import Bid
+    from syntropism.domain.models import Bid
 
     bid = db_session.query(Bid).filter(Bid.id == response.json()["bid_id"]).first()
     assert bid is not None
@@ -203,7 +203,7 @@ def test_place_bid_invalid_request(client):
 
 
 def test_submit_prompt_validation(db_session, client):
-    from syntropism.models import Execution, ResourceBundle
+    from syntropism.domain.models import Execution, ResourceBundle
 
     # Create test agent, bundle, and execution
     agent = Agent(id="agent1", credit_balance=100.0)
@@ -239,7 +239,7 @@ def test_submit_prompt_validation(db_session, client):
 
 
 def test_get_market_prices(db_session, client):
-    from syntropism.models import MarketState
+    from syntropism.domain.models import MarketState
 
     # Seed market states
     states = [

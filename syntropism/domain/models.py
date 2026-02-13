@@ -6,7 +6,7 @@ from sqlalchemy import JSON, Column, DateTime, Float, ForeignKey, Integer, Strin
 from sqlalchemy import Enum as SQLEnum
 from sqlalchemy.orm import relationship
 
-from .database import Base
+from syntropism.infra.database import Base
 
 
 def utc_now():

@@ -1,35 +1,33 @@
-# Plan Implications: Genesis Agent Refactor
+# Architectural Plan Implications: Benchmarks & Cognitive Gateway
 
-This document identifies the gap between the current implementation and the target architecture defined in [`docs/design/06_genesis_agent.md`](docs/design/06_genesis_agent.md).
+This document identifies the technical debt, breaking changes, and infrastructure requirements introduced by the upcoming plans for benchmarking and the formalization of the Cognitive Gateway.
 
-## 1. Technical Debt
+## 1. Audit of `docs/design/11_benchmark_scenarios.md` (Test Integration)
 
-- **Direct HTTP Calls**: The current Genesis Agent ([`workspaces/genesis/main.py`](workspaces/genesis/main.py)) makes direct `requests` calls to the system API. The design specifies a `CognitionService`, `EconomicService`, etc., which should abstract these calls.
-- **Lack of Cognition Layer**: There is currently no implementation of the `CognitionService` or integration with the `deepagents` framework. The agent logic is hardcoded in `main.py`.
-- **Manual Env Loading**: The agent manually loads `env.json`. This should be handled by the service abstractions.
-- **Missing LLM Proxy**: The current implementation does not show a local LLM proxy for system-routed calls.
-- **Synchronous Human Interaction**: The `AttentionManager` in [`syntropism/orchestrator.py`](syntropism/orchestrator.py) uses `input()` which blocks the entire system loop. This must be moved to an asynchronous/background process.
+### Technical Debt
+- **Event Consistency**: To support reliable benchmarking in tests, every system service must consistently publish events to the `benchmark_events` subject.
+- **Mocking NATS in Tests**: Integration tests now require a running NATS server, increasing the complexity of the test environment.
 
-## 2. Breaking Changes
+### Breaking Changes
+- **Test Runner**: Existing E2E tests must be refactored to use the `BenchmarkRunner` for validation instead of direct database or API checks.
 
-- **API Schema Alignment**: The current `BidRequest` and `PromptRequest` in [`syntropism/service.py`](syntropism/service.py) may need to change to support the structured output and streaming requirements of the `CognitionService`.
-- **Workspace Structure**: The transition to a `WorkspaceService` might change how files are accessed (e.g., moving from direct `os` calls to service-mediated calls).
-- **Environment Variables**: The reliance on `SYSTEM_SERVICE_URL` and `ENV_JSON_PATH` might be superseded by a more robust service discovery or injection mechanism.
+### New Infrastructure Requirements
+- **NATS for CI**: CI/CD pipelines must now include a NATS sidecar for integration testing.
 
-## 3. Infrastructure Requirements
+## 2. Audit of "Cognitive Gateway" (REST vs. NATS)
 
-- **LLM Proxy Service**: A new service (or endpoint in the existing service) is needed to proxy LLM calls, enforce token limits, and provide audit logging.
-- **DeepAgents Integration**: The `runtime/Dockerfile` needs to be verified for compatibility with the `deepagents` library and its dependencies.
-- **Asynchronous Task Queue**: To prevent the system loop from blocking on human input, a task queue (e.g., Celery or a simple internal queue) is needed for attention processing.
-- **Persistent Storage for LLM Context**: The `CognitionService` requires a way to persist and retrieve rolling context windows, possibly using the existing `Workspace` or a dedicated vector store if scaling.
+### Technical Debt
+- **Translation Layer**: Formalizing the "Cognitive Gateway" requires building and maintaining a translation layer between external REST/MCP APIs and internal NATS subjects.
+- **Protocol Mismatch**: Handling the impedance mismatch between synchronous REST calls and asynchronous NATS messaging (e.g., timeouts, error propagation).
 
-## 4. Comparison Summary
+### Breaking Changes
+- **Service Deprecation**: Internal services that still rely on REST (e.g., `spawn`, `transfer`) must be migrated to NATS to maintain the "Internal NATS" standard.
 
-| Feature | Current Implementation | Target (06_genesis_agent.md) | Gap |
-|---------|------------------------|-----------------------------|-----|
-| **Cognition** | Hardcoded logic in `main.py` | `CognitionService` (deepagents) | High |
-| **Economy** | Direct REST calls | `EconomicService` abstraction | Medium |
-| **Social** | Blocking `input()` in loop | `SocialService` (async) | High |
-| **Workspace** | Direct FS access | `WorkspaceService` abstraction | Medium |
-| **LLM Routing** | None (direct or missing) | System-routed Proxy | High |
-| **Resource Limits** | Docker-level (CPU/Mem) | Token + Docker Enforcement | Medium |
+### New Infrastructure Requirements
+- **MCP Gateway**: A dedicated component within the FastAPI service to bridge NATS requests to external MCP servers.
+
+## 3. Summary of Risks
+
+1.  **Developer Friction**: If the NATS/REST translation layer is complex, it may slow down the integration of new AI/ML tools.
+2.  **Test Flakiness**: Asynchronous event-based testing is inherently more prone to flakiness than synchronous API testing.
+3.  **Complexity**: Maintaining two communication protocols (NATS for internal, REST for external) requires clear boundaries and documentation to avoid confusion.

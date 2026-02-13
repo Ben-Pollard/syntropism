@@ -80,7 +80,7 @@ def calculate_bid(balance: float, attention_share: float = 0.0) -> dict:
     """
     bid_amount = balance * 0.10  # 10% of balance
 
-    return {"amount": bid_amount, "cpu": 5, "memory_mb": 128, "tokens": 1000, "attention_share": attention_share}
+    return {"amount": bid_amount, "cpu": 1, "memory_mb": 128, "tokens": 1000, "attention_share": attention_share}
 
 
 def main():

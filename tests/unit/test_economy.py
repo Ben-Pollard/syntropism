@@ -2,9 +2,9 @@ import pytest
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
-from syntropism.database import Base
-from syntropism.economy import EconomicEngine
-from syntropism.models import Agent
+from syntropism.infra.database import Base
+from syntropism.domain.economy import EconomicEngine
+from syntropism.domain.models import Agent
 
 # Use in-memory SQLite for testing
 SQLALCHEMY_DATABASE_URL = "sqlite:///:memory:"

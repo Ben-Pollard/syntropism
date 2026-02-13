@@ -1,7 +1,21 @@
+import json
+
+import nats
+from opentelemetry import trace
+from opentelemetry.exporter.otlp.proto.grpc.trace_exporter import OTLPSpanExporter
+from opentelemetry.sdk.trace import TracerProvider
+from opentelemetry.sdk.trace.export import BatchSpanProcessor
 from sqlalchemy.orm import Session
 
-from .models import Agent, Transaction
+from syntropism.infra.database import SessionLocal
+from syntropism.domain.models import Agent, Transaction
 
+# Initialize OTEL
+provider = TracerProvider()
+processor = BatchSpanProcessor(OTLPSpanExporter(endpoint="http://localhost:4317", insecure=True))
+provider.add_span_processor(processor)
+trace.set_tracer_provider(provider)
+tracer = trace.get_tracer(__name__)
 
 class EconomicEngine:
     """
@@ -12,22 +26,6 @@ class EconomicEngine:
     def transfer_credits(session: Session, from_id: str, to_id: str, amount: float, memo: str):
         """
         Transfer credits from one agent to another.
-
-        This operation performs balance checks and updates both agents' balances and
-        total earned/spent statistics. It also records a transaction.
-
-        Note: This method does NOT call session.commit(). The caller is responsible
-        for committing the transaction to allow for composability.
-
-        Args:
-            session: SQLAlchemy session
-            from_id: ID of the source agent
-            to_id: ID of the destination agent
-            amount: Amount of credits to transfer (must be positive)
-            memo: Description of the transaction
-
-        Raises:
-            ValueError: If amount is non-positive, agents are not found, or source has insufficient funds.
         """
         if amount <= 0:
             raise ValueError("Amount must be positive")
@@ -59,16 +57,6 @@ class EconomicEngine:
     def get_balance(session: Session, agent_id: str) -> float:
         """
         Get the current credit balance of an agent.
-
-        Args:
-            session: SQLAlchemy session
-            agent_id: ID of the agent
-
-        Returns:
-            The current credit balance
-
-        Raises:
-            ValueError: If the agent is not found
         """
         agent = session.query(Agent).filter(Agent.id == agent_id).first()
         if not agent:
@@ -79,13 +67,6 @@ class EconomicEngine:
     def get_history(session: Session, entity_id: str) -> list[Transaction]:
         """
         Get the transaction history for an agent.
-
-        Args:
-            session: SQLAlchemy session
-            entity_id: ID of the agent
-
-        Returns:
-            List of Transaction objects involving the agent, ordered by timestamp descending.
         """
         return (
             session.query(Transaction)
@@ -93,3 +74,24 @@ class EconomicEngine:
             .order_by(Transaction.timestamp.desc())
             .all()
         )
+
+    async def run_nats(self, nats_url: str = "nats://localhost:4222"):
+        nc = await nats.connect(nats_url, connect_timeout=2)
+
+        async def balance_handler(msg):
+            with tracer.start_as_current_span("balance_handler") as span:
+                subject = msg.subject
+                agent_id = subject.split(".")[-1]
+                span.set_attribute("agent_id", agent_id)
+
+                with SessionLocal() as session:
+                    try:
+                        balance = self.get_balance(session, agent_id)
+                        response = {"agent_id": agent_id, "balance": balance}
+                        await msg.respond(json.dumps(response).encode())
+                    except ValueError as e:
+                        span.record_exception(e)
+                        await msg.respond(json.dumps({"error": str(e)}).encode())
+
+        await nc.subscribe("economic.balance.*", cb=balance_handler)
+        return nc

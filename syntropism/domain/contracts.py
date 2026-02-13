@@ -8,7 +8,7 @@ These contracts are mounted read-only into the agent sandbox to ensure type safe
 and alignment between the system API and the agent services.
 
 Usage in System:
-    from .contracts import PromptRequest
+    from syntropism.domain.contracts import PromptRequest
 
 Usage in Agent:
     import sys

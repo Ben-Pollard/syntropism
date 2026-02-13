@@ -4,11 +4,11 @@ from datetime import UTC, datetime
 
 from sqlalchemy.orm import Session
 
-from .attention import AttentionManager
-from .market import MarketManager
-from .models import Agent, AgentStatus, Bid, BidStatus, Execution, Workspace
-from .sandbox import ExecutionSandbox
-from .scheduler import AllocationScheduler
+from syntropism.domain.attention import AttentionManager
+from syntropism.domain.market import MarketManager
+from syntropism.domain.models import Agent, AgentStatus, Bid, BidStatus, Execution, Workspace
+from syntropism.core.sandbox import ExecutionSandbox
+from syntropism.core.scheduler import AllocationScheduler
 
 
 def run_system_loop(session: Session):
