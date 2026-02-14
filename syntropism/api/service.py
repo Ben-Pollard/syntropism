@@ -5,14 +5,15 @@ from fastapi import Depends, FastAPI, HTTPException
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
+from syntropism.api.dependencies import get_db
+from syntropism.core.genesis import EvolutionManager
 from syntropism.domain.attention import AttentionManager
 from syntropism.domain.contracts import BidRequest, PromptRequest, RewardScores
-from syntropism.api.dependencies import get_db
 from syntropism.domain.economy import EconomicEngine
-from syntropism.infra.llm_proxy import router as llm_router
 from syntropism.domain.market import MarketManager
 from syntropism.domain.models import MarketState, ResourceBundle
 from syntropism.domain.social import SocialManager
+from syntropism.infra.llm_proxy import router as llm_router
 
 app = FastAPI(title="BP Agents API")
 
@@ -23,12 +24,14 @@ async def startup_event():
     app.state.economy_nc = await EconomicEngine().run_nats(nats_url)
     app.state.market_nc = await MarketManager().run_nats(nats_url)
     app.state.social_nc = await SocialManager().run_nats(nats_url)
+    app.state.evolution_nc = await EvolutionManager().run_nats(nats_url)
 
 @app.on_event("shutdown")
 async def shutdown_event():
     await app.state.economy_nc.close()
     await app.state.market_nc.close()
     await app.state.social_nc.close()
+    await app.state.evolution_nc.close()
 
 # Mount LLM proxy router
 app.include_router(llm_router, prefix="/api/v1", tags=["llm"])
@@ -73,9 +76,9 @@ def get_balance(agent_id: str, db: Annotated[Session, Depends(get_db)]):
 
 
 @app.post("/economic/transfer")
-def transfer_credits(request: TransferRequest, db: Annotated[Session, Depends(get_db)]):
+async def transfer_credits(request: TransferRequest, db: Annotated[Session, Depends(get_db)]):
     try:
-        EconomicEngine.transfer_credits(db, request.from_id, request.to_id, request.amount, request.memo)
+        await EconomicEngine.transfer_credits(db, request.from_id, request.to_id, request.amount, request.memo)
         db.commit()
         return {"status": "success", "amount": request.amount}
     except ValueError as e:

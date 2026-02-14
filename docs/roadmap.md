@@ -1,6 +1,20 @@
-- [ ] Prepare communication architecture for benchmarking and observability
-- [ ] Benchmark runner
-- [ ] Agent bootstrapping & benchmarking
-- [ ] Observability
+- [x] Prepare communication architecture for benchmarking and observability
+- [x] Benchmark runner
+- [ ] Benchmark development
+    - [ ] Ensure resource units make sense
+    - [ ] Extract benchmark from docs into individual files to assist coding assistant reasoning on single benchmark items
+    - [ ] Benchmark constructor
+        - [ ] Test that benchmark item files can be composed into a single file
+    - [ ] Ensure necessary events are defined in the system
+- [ ] Observability stack
+    - [ ] traces -> jaeger
+        - [ ] define what the traces/spans/sessions primitives mean in this system
+    - [ ] metrics -> prometheus
+    - [ ] viz with grafana
+- [ ] Agent bootstrapping & benchmarking docs
+    - [ ] Context design: tool availability, access to documentation, coding best practices, ai domain knowledge.
+    - [ ] Coding ability
+    - System design, suggested strategies
+    - [ ] Working together: payments for code/information
 - [ ] Agent persistence management
 - [ ] Selection pressure review

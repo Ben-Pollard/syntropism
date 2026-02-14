@@ -4,8 +4,8 @@ import json
 import nats
 from sqlalchemy.orm import Session
 
-from syntropism.infra.database import SessionLocal
 from syntropism.domain.models import MarketState, ResourceBundle
+from syntropism.infra.database import SessionLocal
 
 
 class ResourceType(enum.Enum):
@@ -25,13 +25,13 @@ class MarketManager:
 
     @staticmethod
     def update_prices(session: Session):
+        """
+        Prices are now discovered during the allocation cycle in the scheduler.
+        This method now only ensures prices stay within bounds if needed,
+        but the formulaic increase/decrease is removed.
+        """
         states = session.query(MarketState).all()
         for state in states:
-            if state.current_utilization >= MarketManager.HIGH_UTILIZATION_THRESHOLD:
-                state.current_market_price *= 1 + MarketManager.PRICE_INCREASE_FACTOR
-            elif state.current_utilization <= MarketManager.LOW_UTILIZATION_THRESHOLD:
-                state.current_market_price *= 1 - MarketManager.PRICE_DECREASE_FACTOR
-
             # Clamp prices
             state.current_market_price = max(
                 MarketManager.MIN_PRICE, min(MarketManager.MAX_PRICE, state.current_market_price)

@@ -2,9 +2,9 @@ import pytest
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
-from syntropism.infra.database import Base
 from syntropism.domain.economy import EconomicEngine
 from syntropism.domain.models import Agent
+from syntropism.infra.database import Base
 
 # Use in-memory SQLite for testing
 SQLALCHEMY_DATABASE_URL = "sqlite:///:memory:"
@@ -22,7 +22,8 @@ def db_session():
         session.close()
 
 
-def test_transfer_credits_success(db_session):
+@pytest.mark.asyncio
+async def test_transfer_credits_success(db_session):
     # Setup
     agent1 = Agent(id="agent-1", credit_balance=100.0)
     agent2 = Agent(id="agent-2", credit_balance=50.0)
@@ -30,7 +31,7 @@ def test_transfer_credits_success(db_session):
     db_session.commit()
 
     # Execute
-    EconomicEngine.transfer_credits(db_session, "agent-1", "agent-2", 30.0, "test transfer")
+    await EconomicEngine.transfer_credits(db_session, "agent-1", "agent-2", 30.0, "test transfer")
     db_session.commit()
 
     # Verify
@@ -44,7 +45,8 @@ def test_transfer_credits_success(db_session):
     assert history[0].to_entity_id == "agent-2"
 
 
-def test_transfer_credits_insufficient_funds(db_session):
+@pytest.mark.asyncio
+async def test_transfer_credits_insufficient_funds(db_session):
     # Setup
     agent1 = Agent(id="agent-1", credit_balance=20.0)
     agent2 = Agent(id="agent-2", credit_balance=50.0)
@@ -53,7 +55,7 @@ def test_transfer_credits_insufficient_funds(db_session):
 
     # Execute & Verify
     with pytest.raises(ValueError, match="Insufficient funds"):
-        EconomicEngine.transfer_credits(db_session, "agent-1", "agent-2", 30.0, "test transfer")
+        await EconomicEngine.transfer_credits(db_session, "agent-1", "agent-2", 30.0, "test transfer")
 
     # Verify balances unchanged
     assert EconomicEngine.get_balance(db_session, "agent-1") == 20.0
@@ -61,7 +63,8 @@ def test_transfer_credits_insufficient_funds(db_session):
     assert len(EconomicEngine.get_history(db_session, "agent-1")) == 0
 
 
-def test_transfer_credits_atomicity(db_session):
+@pytest.mark.asyncio
+async def test_transfer_credits_atomicity(db_session):
     # Setup
     agent1 = Agent(id="agent-1", credit_balance=100.0)
     # agent2 does not exist, which should cause an error during transfer
@@ -71,10 +74,10 @@ def test_transfer_credits_atomicity(db_session):
     # Execute & Verify
     with pytest.raises(ValueError):
         # This should fail because agent-2 doesn't exist
-        EconomicEngine.transfer_credits(db_session, "agent-1", "non-existent", 30.0, "test transfer")
+        await EconomicEngine.transfer_credits(db_session, "agent-1", "non-existent", 30.0, "test transfer")
         db_session.commit()
 
     # Verify agent1 balance unchanged (atomicity)
     db_session.rollback()  # Ensure session is clean
     assert EconomicEngine.get_balance(db_session, "agent-1") == 100.0
-    assert len(EconomicEngine.get_history(db_session, "agent-1")) == 0
+    assert len(EconomicEngine.get_history(db_session, "db_session-1")) == 0

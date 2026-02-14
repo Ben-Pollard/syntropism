@@ -21,10 +21,10 @@ import pytest
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
-from syntropism.infra.database import Base
 from syntropism.core.genesis import create_genesis_agent
-from syntropism.domain.models import ResourceBundle
 from syntropism.core.sandbox import ExecutionSandbox
+from syntropism.domain.models import ResourceBundle
+from syntropism.infra.database import Base
 
 
 @pytest.fixture
@@ -48,7 +48,8 @@ def test_runtime_handshake(db_session):
 
     # 3. Run agent in sandbox
     sandbox = ExecutionSandbox(image="bp-agent-runner:latest")
-    resource_bundle = ResourceBundle(cpu_seconds=5, memory_mb=512, tokens=1000)
+    # Use new capacity-based fields
+    resource_bundle = ResourceBundle(cpu_percent=0.1, memory_percent=0.1, tokens_percent=0.1, duration_seconds=5.0)
 
     exit_code, logs = sandbox.run_agent(
         agent_id=agent.id, workspace_path=workspace_path, resource_bundle=resource_bundle, runtime_data=runtime_data

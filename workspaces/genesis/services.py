@@ -237,5 +237,50 @@ class WorkspaceService:
         logger.info(f'Audit log - Action: {action}, Path: {path}')
 
 
+class EvolutionService:
+    """NATS client for agent evolution (spawning)."""
+
+    def __init__(self, nats_url: str = NATS_URL):
+        self.nats_url = nats_url
+        logger.info(f'EvolutionService initialized with nats_url: {nats_url}')
+
+    async def _make_request(self, subject: str, data: dict = None) -> dict:
+        """Make a NATS request to the System API."""
+        logger.debug(f"Making NATS request to {subject} with data: {data}")
+
+        nc = await nats.connect(self.nats_url, connect_timeout=2)
+        try:
+            payload = json.dumps(data).encode() if data else b""
+            response = await nc.request(subject, payload, timeout=2)
+            return json.loads(response.data)
+        finally:
+            await nc.close()
+
+    def spawn_child(self, payload: dict = None) -> dict:
+        """
+        Spawn a child agent via NATS.
+        """
+        agent_id = os.getenv("AGENT_ID")
+        if not agent_id:
+            raise ValueError("AGENT_ID environment variable not set")
+
+        req_data = {
+            "parent_id": agent_id,
+            "payload": payload or {}
+        }
+
+        try:
+            loop = asyncio.get_event_loop()
+            if loop.is_running():
+                result = asyncio.run_coroutine_threadsafe(self._make_request("evolution.spawn", req_data), loop).result()
+            else:
+                result = asyncio.run(self._make_request("evolution.spawn", req_data))
+        except RuntimeError:
+            result = asyncio.run(self._make_request("evolution.spawn", req_data))
+
+        logger.info(f"Agent spawned: {result}")
+        return result
+
+
 # Structured Logging Configuration with component tagging
 logger.add('system.log', format='{time} {level} [component:agent-genesis] {message}', level='DEBUG', rotation='10 MB')

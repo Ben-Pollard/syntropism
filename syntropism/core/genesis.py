@@ -1,9 +1,13 @@
+import json
 import os
+import shutil
 import uuid
 
+import nats
 from sqlalchemy.orm import Session
 
 from syntropism.domain.models import Agent, AgentStatus, Transaction, Workspace
+from syntropism.infra.database import SessionLocal
 
 SPAWN_COST = 10.0
 
@@ -97,6 +101,15 @@ def spawn_child_agent(session: Session, parent_id: str, initial_credits: float, 
         agent_id=child_id,
     )
 
+    # Copy main.py and services.py from parent workspace if they exist
+    parent_workspace = parent.workspace
+    if parent_workspace:
+        for filename in ["main.py", "services.py"]:
+            src = os.path.join(parent_workspace.filesystem_path, filename)
+            if os.path.exists(src):
+                dst = os.path.join(child.workspace.filesystem_path, filename)
+                shutil.copy2(src, dst)
+
     # Write payload to workspace
     if payload:
         for filename, content in payload.items():
@@ -117,3 +130,33 @@ def spawn_child_agent(session: Session, parent_id: str, initial_credits: float, 
     session.refresh(child)
 
     return child
+
+
+class EvolutionManager:
+    """
+    Manager for agent evolution, handling spawning requests via NATS.
+    """
+
+    async def run_nats(self, nats_url: str = "nats://localhost:4222"):
+        nc = await nats.connect(nats_url, connect_timeout=2)
+
+        async def spawn_handler(msg):
+            data = json.loads(msg.data)
+            parent_id = data.get("parent_id")
+            initial_credits = data.get("initial_credits", 50.0)
+            payload = data.get("payload", {})
+
+            with SessionLocal() as session:
+                try:
+                    child = spawn_child_agent(session, parent_id, initial_credits, payload)
+                    response = {
+                        "status": "success",
+                        "child_id": child.id,
+                        "workspace_id": child.workspace_id
+                    }
+                    await msg.respond(json.dumps(response).encode())
+                except Exception as e:
+                    await msg.respond(json.dumps({"status": "error", "message": str(e)}).encode())
+
+        await nc.subscribe("evolution.spawn", cb=spawn_handler)
+        return nc

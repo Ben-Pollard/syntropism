@@ -1,35 +1,35 @@
-# Future Architectural Direction: Developer Experience & Observability
+# Future Architectural Direction: Market Alignment & Event-Driven Benchmarking
 
-This document outlines the agreed architectural direction for the next phase of the `bp-agents-2` project, prioritizing developer experience (DX) and observability while maintaining the system's "laptop-bound" simplicity.
+This document formalizes the agreed architectural direction for aligning the system's market dynamics and event emission with the benchmark requirements.
 
-## 1. Core Objectives
+## 1. Core Principles
 
-1.  **Prioritize Developer Experience (DX)**: Maintain the synchronous orchestration loop and bind-mounted workspaces for easy debugging and state inspection.
-2.  **Unified Communication Strategy**: Resolve the "two ways of communicating" smell by deciding on the role of NATS vs. REST for external integrations.
-3.  **Benchmark-Driven Development**: Integrate the `BenchmarkRunner` into the test suite to provide immediate feedback on agent performance.
-4.  **Observability-First**: Leverage the newly implemented NATS/OTEL stack for deep tracing of agent reasoning and system interactions.
+1.  **Market-Driven Price Discovery**: Prices are not set by a central authority but emerge from the interaction of system capacity and agent needs. The `MarketManager` facilitates discovery rather than dictating price.
+2.  **Physics of Scarcity**: Resources (CPU, Memory, Tokens, Attention) are finite, strictly enforced, and priced per unit time.
+3.  **Event-Driven Truth**: The system's state changes are communicated via an immutable, structured event stream. This stream is the "Source of Truth" for the `BenchmarkRunner`.
+4.  **System-First Event Design**: Event structures are derived from best practices and existing system services. The benchmark definitions must align with these system-emitted events, not vice versa.
 
 ## 2. Key Decisions
 
-### Decision 1: Retain Synchronous Orchestration & Bind Mounts
--   **Direction**: Keep the `Orchestrator` as a synchronous loop and workspaces as host-bound bind mounts.
--   **Rationale**: Scaling is not currently a bottleneck. Bind mounts and synchronous execution are critical for `debugpy` support and direct filesystem inspection. Distributed persistence is deferred (YAGNI).
+### Decision 1: Refine Resource Allocation to Time-Based Bundles
+-   **Direction**: Transition from "one-off" resource purchases to time-based "Resource Bundles" (e.g., 10% CPU for 10 minutes).
+-   **Rationale**: Aligns with `docs/design/03_market.md`. Prevents "Partial Existence" and ensures agents have a predictable execution window.
 
-### Decision 2: Hybrid Communication (NATS for Internal, REST for External)
--   **Direction**: Use NATS for all *internal* agent-to-system interactions (Economy, Market, Social). Use REST/FastAPI for *external* gateways (LLM APIs, MCP, third-party integrations).
--   **Rationale**: Avoids the overhead of writing NATS translations for every open-source AI/ML project. The FastAPI service acts as a "Cognitive Gateway" that bridges external REST/gRPC APIs to the internal NATS-based agent environment.
+### Decision 2: Implement System-Wide LLM Spend Limits
+-   **Direction**: Define a maximum spend per unit time for upstream LLM services.
+-   **Rationale**: Places commercial LLM usage into the same "Physical Scarcity" space as CPU and Memory.
 
-### Decision 3: Test-Integrated Benchmarking
--   **Direction**: The `BenchmarkRunner` will initially be used as a validation tool within the integration test suite.
--   **Implementation**: Tests will launch agents, collect NATS events, and use the `BenchmarkRunner` to verify `required_event_sequence` and `forbidden_events`.
+### Decision 3: Standardize Event Taxonomy based on System Services
+-   **Direction**: Define a unified event schema and taxonomy (e.g., `bid_placed`, `resources_allocated`, `credits_transferred`) based on the actual capabilities of the `EconomicEngine`, `MarketManager`, and `Scheduler`.
+-   **Rationale**: Ensures the benchmark reflects the actual system dynamics. Identifies gaps where the benchmark requires events the system cannot yet emit.
 
-### Decision 4: Observability as the "Source of Truth"
--   **Direction**: Use OTEL traces and NATS event logs as the primary means of auditing agent behavior, rather than just `system.log`.
--   **Implementation**: Ensure all internal service handlers (Economic, Market) are fully instrumented with OTEL spans that propagate through NATS headers.
+### Decision 4: NATS-First Event Emission
+-   **Direction**: All core domain services (Economy, Market, Scheduler) must emit events to NATS as their primary means of notifying the system of state changes.
+-   **Rationale**: Decouples the `BenchmarkRunner` and other observability tools from the internal implementation details of the services.
 
 ## 3. Success Criteria
 
--   **Zero-Config Debugging**: Developers can still attach VS Code to a running agent container via `debugpy` without complex network setup.
--   **Transparent Benchmarking**: Running `pytest` provides a clear pass/fail report based on the benchmark scenarios in `docs/design/11_benchmark_scenarios.md`.
--   **Clean Gateway Boundaries**: A clear distinction between internal NATS subjects and external REST/MCP endpoints.
--   **Trace Visibility**: Every agent request can be traced from the agent's `EconomicService` through NATS to the `EconomicEngine` and back.
+-   **Dynamic Pricing**: Market prices fluctuate based on actual utilization and agent bidding behavior.
+-   **Hard Enforcement**: Agents are terminated or denied service if they exceed their allocated time-based bundle.
+-   **Benchmark Alignment**: The `BenchmarkRunner` can successfully validate agent behavior using the standardized system event stream.
+-   **Traceable Economy**: Every credit transfer and resource allocation is visible as a discrete event in the NATS stream.

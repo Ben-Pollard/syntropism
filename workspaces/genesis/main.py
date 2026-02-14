@@ -22,6 +22,7 @@ try:
     from .services import (
         CognitionService,
         EconomicService,
+        EvolutionService,
         SocialService,
         WorkspaceService,
     )
@@ -29,6 +30,7 @@ except ImportError:
     from services import (
         CognitionService,
         EconomicService,
+        EvolutionService,
         SocialService,
         WorkspaceService,
     )
@@ -127,6 +129,7 @@ def main():
     # Initialize service layer abstractions
     cognition_service = CognitionService()
     economic_service = EconomicService()
+    evolution_service = EvolutionService()
     social_service = SocialService()
     workspace_service = WorkspaceService()
 
@@ -171,6 +174,12 @@ def main():
             print(f"SocialService response: {prompt_result}")
         else:
             print("\nNo attention allocated, skipping prompt.")
+
+        # Step 5: Spawn child if balance is high
+        if current_balance > 800:
+            print("\nHigh balance detected, spawning child agent...")
+            spawn_result = evolution_service.spawn_child(payload={"purpose": "exploration"})
+            print(f"Spawn result: {spawn_result}")
 
         logger.info("Genesis agent execution completed successfully")
 

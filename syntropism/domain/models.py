@@ -77,10 +77,18 @@ class ResourceBundle(Base):
     __tablename__ = "resource_bundles"
 
     id = Column(String, primary_key=True, default=generate_uuid)
-    cpu_seconds = Column(Float)
-    memory_mb = Column(Float)
-    tokens = Column(Integer)
+    # Old fields (deprecated)
+    cpu_seconds = Column(Float, nullable=True)
+    memory_mb = Column(Float, nullable=True)
+    tokens = Column(Integer, nullable=True)
     attention_share = Column(Float, default=0.0)
+
+    # New capacity-based fields
+    cpu_percent = Column(Float, default=0.0)
+    memory_percent = Column(Float, default=0.0)
+    tokens_percent = Column(Float, default=0.0)
+    attention_percent = Column(Float, default=0.0)
+    duration_seconds = Column(Float, default=0.0)
 
 
 class Bid(Base):

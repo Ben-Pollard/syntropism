@@ -20,7 +20,7 @@ class BenchmarkRunner:
             self.events.append(event)
             logger.debug(f"BenchmarkRunner collected event: {event}")
 
-        await self.nc.subscribe("benchmark_events", cb=event_handler)
+        await self.nc.subscribe("system.*.*", cb=event_handler)
 
     def validate_scenario(self, scenario: dict) -> bool:
         required_sequence = scenario.get("validation", {}).get("required_event_sequence", [])

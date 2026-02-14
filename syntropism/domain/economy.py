@@ -7,8 +7,8 @@ from opentelemetry.sdk.trace import TracerProvider
 from opentelemetry.sdk.trace.export import BatchSpanProcessor
 from sqlalchemy.orm import Session
 
-from syntropism.infra.database import SessionLocal
 from syntropism.domain.models import Agent, Transaction
+from syntropism.infra.database import SessionLocal
 
 # Initialize OTEL
 provider = TracerProvider()
@@ -23,20 +23,23 @@ class EconomicEngine:
     """
 
     @staticmethod
-    def transfer_credits(session: Session, from_id: str, to_id: str, amount: float, memo: str):
+    async def transfer_credits(session: Session, from_id: str, to_id: str, amount: float, memo: str, nc=None):
         """
         Transfer credits from one agent to another.
         """
+        from syntropism.domain.events import CreditsBurned
         if amount <= 0:
             raise ValueError("Amount must be positive")
 
         # Lock rows for update to prevent race conditions
         from_agent = session.query(Agent).filter(Agent.id == from_id).with_for_update().first()
-        to_agent = session.query(Agent).filter(Agent.id == to_id).with_for_update().first()
+        to_agent = None
+        if to_id != "system":
+            to_agent = session.query(Agent).filter(Agent.id == to_id).with_for_update().first()
 
         if not from_agent:
             raise ValueError(f"Source agent {from_id} not found")
-        if not to_agent:
+        if to_id != "system" and not to_agent:
             raise ValueError(f"Destination agent {to_id} not found")
 
         if from_agent.credit_balance < amount:
@@ -46,12 +49,18 @@ class EconomicEngine:
         from_agent.credit_balance -= amount
         from_agent.total_credits_spent += amount
 
-        to_agent.credit_balance += amount
-        to_agent.total_credits_earned += amount
+        if to_agent:
+            to_agent.credit_balance += amount
+            to_agent.total_credits_earned += amount
 
         # Record transaction
         transaction = Transaction(from_entity_id=from_id, to_entity_id=to_id, amount=amount, memo=memo)
         session.add(transaction)
+
+        # Emit event if burning (transfer to system/null)
+        if nc and (to_id is None or to_id == "system"):
+            event = CreditsBurned(agent_id=from_id, amount=amount, reason=memo)
+            await nc.publish("system.economy.credits_burned", event.model_dump_json().encode())
 
     @staticmethod
     def get_balance(session: Session, agent_id: str) -> float:

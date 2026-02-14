@@ -4,14 +4,14 @@ from datetime import UTC, datetime
 
 from sqlalchemy.orm import Session
 
+from syntropism.core.sandbox import ExecutionSandbox
+from syntropism.core.scheduler import AllocationScheduler
 from syntropism.domain.attention import AttentionManager
 from syntropism.domain.market import MarketManager
 from syntropism.domain.models import Agent, AgentStatus, Bid, BidStatus, Execution, Workspace
-from syntropism.core.sandbox import ExecutionSandbox
-from syntropism.core.scheduler import AllocationScheduler
 
 
-def run_system_loop(session: Session):
+async def run_system_loop(session: Session, nc=None):
     """
     Main system loop that orchestrates the agent economy.
 
@@ -21,8 +21,10 @@ def run_system_loop(session: Session):
     3. Market Update: Adjust prices based on utilization
     4. Attention: Process pending prompts and collect human scores
     """
+    from syntropism.domain.events import ExecutionStarted, ExecutionTerminated
+
     # Step 1: Allocation
-    AllocationScheduler.run_allocation_cycle(session)
+    await AllocationScheduler.run_allocation_cycle(session, nc=nc)
 
     # Step 2: Execution - find all WINNING bids and execute them
     winning_bids = session.query(Bid).filter_by(status=BidStatus.WINNING).all()
@@ -41,7 +43,7 @@ def run_system_loop(session: Session):
             "agent_id": agent.id,
             "credits": agent.credit_balance,
             "execution_id": bid.execution_id,
-            "attention_share": bid.resource_bundle.attention_share,
+            "attention_share": bid.resource_bundle.attention_percent or bid.resource_bundle.attention_share,
         }
         env_json_path = os.path.join(workspace_path, "env.json")
         with open(env_json_path, "w") as f:
@@ -53,6 +55,15 @@ def run_system_loop(session: Session):
             print(f"\n[DEBUG] Starting agent {agent.id} in DEBUG mode.")
             print("[DEBUG] Waiting for debugger attach on port 5678...")
             print("[DEBUG] Please run 'Debug Agent (Attach)' configuration in VS Code.")
+
+        # Emit ExecutionStarted event
+        if nc:
+            event = ExecutionStarted(
+                execution_id=bid.execution_id,
+                agent_id=agent.id,
+                resource_bundle_id=bid.resource_bundle_id
+            )
+            await nc.publish("system.execution.started", event.model_dump_json().encode())
 
         sandbox = ExecutionSandbox(debug=debug_mode)
         exit_code, logs = sandbox.run_agent(
@@ -77,6 +88,16 @@ def run_system_loop(session: Session):
             execution.exit_code = exit_code
             execution.termination_reason = logs[:500] if logs else None
             execution.end_time = datetime.now(UTC)
+
+        # Emit ExecutionTerminated event
+        if nc:
+            event = ExecutionTerminated(
+                execution_id=bid.execution_id,
+                agent_id=agent.id,
+                exit_code=exit_code,
+                reason=logs[:100] if logs else "success"
+            )
+            await nc.publish("system.execution.terminated", event.model_dump_json().encode())
 
     # Step 3: Market Update - adjust prices based on utilization
     MarketManager.update_prices(session)

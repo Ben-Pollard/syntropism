@@ -7,6 +7,8 @@ from syntropism.domain.models import ResourceBundle
 
 # Determine the project root (where syntropism/ is located)
 PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+# The parent of PROJECT_ROOT is where the 'syntropism' package resides
+PACKAGE_PARENT = os.path.dirname(PROJECT_ROOT)
 
 
 class ExecutionSandbox:
@@ -23,13 +25,16 @@ class ExecutionSandbox:
         """
         Runs an agent in a Docker container with specified resource limits.
         """
-        # Convert memory_mb to Docker format (e.g., "512m")
-        mem_limit = f"{int(resource_bundle.memory_mb)}m"
+        # Convert memory_percent to Docker format (e.g., "512m")
+        # Assuming 1.0 (100%) = 2GB for now as a default if memory_mb is not set
+        memory_mb = resource_bundle.memory_mb or (resource_bundle.memory_percent * 2048)
+        mem_limit = f"{int(memory_mb)}m"
 
-        # Convert cpu_seconds to cpu_period and cpu_quota
+        # Convert cpu_percent to cpu_period and cpu_quota
         # Default period is 100,000 (100ms)
         cpu_period = 100000
-        cpu_quota = int(resource_bundle.cpu_seconds * cpu_period)
+        # cpu_percent 1.0 means 100% of one core
+        cpu_quota = int((resource_bundle.cpu_seconds or resource_bundle.cpu_percent) * cpu_period)
 
         if runtime_data:
             env_json_path = os.path.join(workspace_path, "env.json")
@@ -40,7 +45,7 @@ class ExecutionSandbox:
             "AGENT_ID": agent_id,
             "SYSTEM_SERVICE_URL": self.system_service_url,
             "NATS_URL": os.getenv("NATS_URL", "nats://host.docker.internal:4222"),
-            "PYTHONPATH": "/system:$PYTHONPATH",  # Ensure /system is in path
+            "PYTHONPATH": "/system:/workspace:$PYTHONPATH",  # Ensure /system and /workspace are in path
         }
 
         if runtime_data and "execution_id" in runtime_data:
@@ -55,7 +60,7 @@ class ExecutionSandbox:
         # project_root is mounted read-only so agents can import contracts but not modify system code
         volumes = {
             workspace_path: {"bind": "/workspace", "mode": "rw"},
-            PROJECT_ROOT: {"bind": "/system", "mode": "ro"},
+            PACKAGE_PARENT: {"bind": "/system", "mode": "ro"},
         }
 
         container = None

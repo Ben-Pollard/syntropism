@@ -2,9 +2,10 @@ import pytest
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
-from syntropism.infra.database import Base
-from syntropism.domain.models import Agent, Bid, BidStatus, Execution, MarketState, ResourceBundle
 from syntropism.core.scheduler import AllocationScheduler
+from syntropism.domain.market import ResourceType
+from syntropism.domain.models import Agent, Bid, BidStatus, Execution, MarketState, ResourceBundle
+from syntropism.infra.database import Base
 
 
 @pytest.fixture
@@ -20,8 +21,8 @@ def session():
 
 def test_place_bid_success(session):
     # Setup
-    agent = Agent(credit_balance=100.0)
-    bundle = ResourceBundle(cpu_seconds=1.0, memory_mb=128.0, tokens=1000)
+    agent = Agent(id="agent-1", credit_balance=100.0)
+    bundle = ResourceBundle(cpu_percent=0.1, memory_percent=0.1, tokens_percent=0.1)
     session.add_all([agent, bundle])
     session.commit()
 
@@ -42,8 +43,8 @@ def test_place_bid_success(session):
 
 def test_place_bid_insufficient_credits(session):
     # Setup
-    agent = Agent(credit_balance=10.0)
-    bundle = ResourceBundle(cpu_seconds=1.0, memory_mb=128.0, tokens=1000)
+    agent = Agent(id="agent-1", credit_balance=10.0)
+    bundle = ResourceBundle(cpu_percent=0.1, memory_percent=0.1, tokens_percent=0.1)
     session.add_all([agent, bundle])
     session.commit()
 
@@ -54,7 +55,7 @@ def test_place_bid_insufficient_credits(session):
 
 def test_place_bid_bundle_not_found(session):
     # Setup
-    agent = Agent(credit_balance=100.0)
+    agent = Agent(id="agent-1", credit_balance=100.0)
     session.add(agent)
     session.commit()
 
@@ -63,13 +64,12 @@ def test_place_bid_bundle_not_found(session):
         AllocationScheduler.place_bid(session, agent.id, "non-existent-bundle", 50.0)
 
 
-def test_allocation_highest_bidder_wins(session):
+@pytest.mark.asyncio
+async def test_allocation_highest_bidder_wins(session):
     # Setup
-    from syntropism.domain.market import ResourceType
-
-    agent1 = Agent(credit_balance=100.0)
-    agent2 = Agent(credit_balance=100.0)
-    bundle = ResourceBundle(cpu_seconds=1.0, memory_mb=128.0, tokens=1000)
+    agent1 = Agent(id="agent-1", credit_balance=100.0)
+    agent2 = Agent(id="agent-2", credit_balance=100.0)
+    bundle = ResourceBundle(cpu_percent=1.0, memory_percent=0.1, tokens_percent=0.1, duration_seconds=1.0)
     # Market supply is only 1.0, but both agents want 1.0
     market_state = MarketState(
         resource_type=ResourceType.CPU.value, available_supply=1.0, current_utilization=0.0, current_market_price=1.0
@@ -82,7 +82,7 @@ def test_allocation_highest_bidder_wins(session):
     AllocationScheduler.place_bid(session, agent2.id, bundle.id, 75.0)
 
     # Action
-    AllocationScheduler.run_allocation_cycle(session)
+    await AllocationScheduler.run_allocation_cycle(session)
 
     # Assert
     bid1 = session.query(Bid).filter_by(from_agent_id=agent1.id).first()
@@ -92,26 +92,22 @@ def test_allocation_highest_bidder_wins(session):
     assert bid1.status == BidStatus.OUTBID
 
 
-def test_allocation_supply_exhaustion(session):
+@pytest.mark.asyncio
+async def test_allocation_supply_exhaustion(session):
     # Setup: 2 bundles available in market, 3 agents bidding for different bundles
-    # Wait, the requirement says "Allocate bundles until supply exhausted".
-    # This implies we should check MarketState for supply.
-
-    from syntropism.domain.market import ResourceType
-
     # Create 3 bundles of same type (e.g. CPU)
-    bundle1 = ResourceBundle(cpu_seconds=1.0, memory_mb=128.0, tokens=0)
-    bundle2 = ResourceBundle(cpu_seconds=1.0, memory_mb=128.0, tokens=0)
-    bundle3 = ResourceBundle(cpu_seconds=1.0, memory_mb=128.0, tokens=0)
+    bundle1 = ResourceBundle(cpu_percent=1.0, memory_percent=0.0, tokens_percent=0.0, duration_seconds=1.0)
+    bundle2 = ResourceBundle(cpu_percent=1.0, memory_percent=0.0, tokens_percent=0.0, duration_seconds=1.0)
+    bundle3 = ResourceBundle(cpu_percent=1.0, memory_percent=0.0, tokens_percent=0.0, duration_seconds=1.0)
 
     # Market supply is only 2
     market_state = MarketState(
         resource_type=ResourceType.CPU.value, available_supply=2.0, current_utilization=0.0, current_market_price=1.0
     )
 
-    agent1 = Agent(credit_balance=100.0)
-    agent2 = Agent(credit_balance=100.0)
-    agent3 = Agent(credit_balance=100.0)
+    agent1 = Agent(id="agent-1", credit_balance=100.0)
+    agent2 = Agent(id="agent-2", credit_balance=100.0)
+    agent3 = Agent(id="agent-3", credit_balance=100.0)
 
     session.add_all([bundle1, bundle2, bundle3, market_state, agent1, agent2, agent3])
     session.commit()
@@ -122,7 +118,7 @@ def test_allocation_supply_exhaustion(session):
     AllocationScheduler.place_bid(session, agent3.id, bundle3.id, 100.0)
 
     # Action
-    AllocationScheduler.run_allocation_cycle(session)
+    await AllocationScheduler.run_allocation_cycle(session)
 
     # Assert
     bid3 = session.query(Bid).filter_by(from_agent_id=agent3.id).first()
@@ -134,34 +130,42 @@ def test_allocation_supply_exhaustion(session):
     assert bid1.status == BidStatus.OUTBID
 
 
-def test_allocation_deducts_credits(session):
+@pytest.mark.asyncio
+async def test_allocation_deducts_credits(session):
     # Setup
-    agent = Agent(credit_balance=100.0)
-    bundle = ResourceBundle(cpu_seconds=1.0, memory_mb=128.0, tokens=0)
-    session.add_all([agent, bundle])
+    agent = Agent(id="agent-1", credit_balance=100.0)
+    bundle = ResourceBundle(cpu_percent=0.1, memory_percent=0.1, tokens_percent=0.0, duration_seconds=1.0)
+    market_state = MarketState(
+        resource_type=ResourceType.CPU.value, available_supply=1.0, current_utilization=0.0, current_market_price=1.0
+    )
+    session.add_all([agent, bundle, market_state])
     session.commit()
 
     AllocationScheduler.place_bid(session, agent.id, bundle.id, 40.0)
 
     # Action
-    AllocationScheduler.run_allocation_cycle(session)
+    await AllocationScheduler.run_allocation_cycle(session)
 
     # Assert
     session.refresh(agent)
     assert agent.credit_balance == 60.0
 
 
-def test_allocation_creates_execution_record(session):
+@pytest.mark.asyncio
+async def test_allocation_creates_execution_record(session):
     # Setup
-    agent = Agent(credit_balance=100.0)
-    bundle = ResourceBundle(cpu_seconds=1.0, memory_mb=128.0, tokens=0)
-    session.add_all([agent, bundle])
+    agent = Agent(id="agent-1", credit_balance=100.0)
+    bundle = ResourceBundle(cpu_percent=0.1, memory_percent=0.1, tokens_percent=0.0, duration_seconds=1.0)
+    market_state = MarketState(
+        resource_type=ResourceType.CPU.value, available_supply=1.0, current_utilization=0.0, current_market_price=1.0
+    )
+    session.add_all([agent, bundle, market_state])
     session.commit()
 
     AllocationScheduler.place_bid(session, agent.id, bundle.id, 40.0)
 
     # Action
-    AllocationScheduler.run_allocation_cycle(session)
+    await AllocationScheduler.run_allocation_cycle(session)
 
     # Assert
     bid = session.query(Bid).filter_by(from_agent_id=agent.id).first()
@@ -175,20 +179,24 @@ def test_allocation_creates_execution_record(session):
     assert execution.status == "PENDING"
 
 
-def test_allocation_prevents_negative_balance(session):
+@pytest.mark.asyncio
+async def test_allocation_prevents_negative_balance(session):
     # Setup: Agent has 100 credits, places two bids of 75 each.
     # Only one should win.
-    agent = Agent(credit_balance=100.0)
-    bundle1 = ResourceBundle(cpu_seconds=1.0, memory_mb=128.0, tokens=0)
-    bundle2 = ResourceBundle(cpu_seconds=1.0, memory_mb=128.0, tokens=0)
-    session.add_all([agent, bundle1, bundle2])
+    agent = Agent(id="agent-1", credit_balance=100.0)
+    bundle1 = ResourceBundle(cpu_percent=1.0, memory_percent=0.1, tokens_percent=0.0, duration_seconds=1.0)
+    bundle2 = ResourceBundle(cpu_percent=1.0, memory_percent=0.1, tokens_percent=0.0, duration_seconds=1.0)
+    market_state = MarketState(
+        resource_type=ResourceType.CPU.value, available_supply=10.0, current_utilization=0.0, current_market_price=1.0
+    )
+    session.add_all([agent, bundle1, bundle2, market_state])
     session.commit()
 
     AllocationScheduler.place_bid(session, agent.id, bundle1.id, 75.0)
     AllocationScheduler.place_bid(session, agent.id, bundle2.id, 75.0)
 
     # Action
-    AllocationScheduler.run_allocation_cycle(session)
+    await AllocationScheduler.run_allocation_cycle(session)
 
     # Assert
     session.refresh(agent)
@@ -197,22 +205,21 @@ def test_allocation_prevents_negative_balance(session):
     assert len(winning_bids) == 1
 
 
-def test_allocation_updates_market_utilization(session):
+@pytest.mark.asyncio
+async def test_allocation_updates_market_utilization(session):
     # Setup
-    from syntropism.domain.market import ResourceType
-
     market_state = MarketState(
         resource_type=ResourceType.CPU.value, available_supply=10.0, current_utilization=0.0, current_market_price=1.0
     )
-    agent = Agent(credit_balance=100.0)
-    bundle = ResourceBundle(cpu_seconds=2.0, memory_mb=128.0, tokens=0)
+    agent = Agent(id="agent-1", credit_balance=100.0)
+    bundle = ResourceBundle(cpu_percent=2.0, memory_percent=0.1, tokens_percent=0.0, duration_seconds=1.0)
     session.add_all([market_state, agent, bundle])
     session.commit()
 
     AllocationScheduler.place_bid(session, agent.id, bundle.id, 50.0)
 
     # Action
-    AllocationScheduler.run_allocation_cycle(session)
+    await AllocationScheduler.run_allocation_cycle(session)
 
     # Assert
     session.refresh(market_state)

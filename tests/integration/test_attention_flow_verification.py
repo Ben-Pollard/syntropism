@@ -11,11 +11,11 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import Session, sessionmaker
 from sqlalchemy.pool import StaticPool
 
-from syntropism.domain.attention import AttentionManager
-from syntropism.infra.database import Base
 from syntropism.core.genesis import create_genesis_agent
-from syntropism.domain.models import Execution, PromptStatus, ResourceBundle
 from syntropism.core.scheduler import AllocationScheduler
+from syntropism.domain.attention import AttentionManager
+from syntropism.domain.models import Execution, PromptStatus, ResourceBundle
+from syntropism.infra.database import Base
 
 
 @pytest.fixture
@@ -42,8 +42,9 @@ def session(db_engine):
         session.close()
 
 
+@pytest.mark.asyncio
 @pytest.mark.integration
-def test_full_attention_flow(session: Session):
+async def test_full_attention_flow(session: Session):
     """
     Test the full lifecycle: Bootstrap -> Bid -> Execution -> Prompt -> Reward.
     """
@@ -51,12 +52,13 @@ def test_full_attention_flow(session: Session):
     agent = create_genesis_agent(session)
     print(f"Created agent: {agent.id}")
 
-    # Create a resource bundle with attention_share=1.0
+    # Create a resource bundle with attention_percent=1.0
     bundle = ResourceBundle(
-        cpu_seconds=1.0,
-        memory_mb=128.0,
-        tokens=1000,
-        attention_share=1.0,
+        cpu_percent=0.1,
+        memory_percent=0.1,
+        tokens_percent=0.1,
+        attention_percent=1.0,
+        duration_seconds=1.0
     )
     session.add(bundle)
     session.flush()
@@ -66,7 +68,7 @@ def test_full_attention_flow(session: Session):
     print(f"Created bid: {bid.id}")
 
     # Run allocation cycle (manual trigger)
-    AllocationScheduler.run_allocation_cycle(session)
+    await AllocationScheduler.run_allocation_cycle(session)
     session.refresh(bid)
 
     assert bid.status.value == "winning", "Bid should be winning"
@@ -93,7 +95,7 @@ def test_full_attention_flow(session: Session):
         bid_amount=5.0
     )
 
-    session.flush() # Ensure ID is generated
+    session.flush()  # Ensure ID is generated
     assert prompt.id is not None
     assert prompt.status == PromptStatus.PENDING
     print(f"Created prompt: {prompt.id}")
@@ -115,7 +117,7 @@ def test_full_attention_flow(session: Session):
         reason="The agent demonstrated clear understanding."
     )
 
-    session.commit() # Ensure the state is committed to the DB session
+    session.commit()  # Ensure the state is committed to the DB session
 
     assert response.credits_awarded > 0
     session.refresh(prompt)

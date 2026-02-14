@@ -6,18 +6,20 @@ import pytest
 import uvicorn
 
 from syntropism.cli import bootstrap_genesis_execution, seed_genesis_agent, seed_market_state
-from syntropism.infra.database import Base, SessionLocal, engine
-from syntropism.domain.models import AgentStatus, Bid, BidStatus
 from syntropism.core.orchestrator import run_system_loop
+from syntropism.domain.models import Agent, AgentStatus, Bid, BidStatus
+from syntropism.infra.database import Base, SessionLocal, engine
 
 
 @pytest.fixture(scope="module")
 def server_port():
     return 8000
 
+
 @pytest.fixture(scope="module")
 def db_path():
     return "test_e2e.db"
+
 
 @pytest.fixture(scope="module")
 def server(db_path, server_port):
@@ -45,6 +47,7 @@ def server(db_path, server_port):
         except PermissionError:
             pass
 
+
 @pytest.fixture
 def db_session(server, db_path):
     # Clear the database for each test
@@ -56,8 +59,10 @@ def db_session(server, db_path):
     yield session
     session.close()
 
+
+@pytest.mark.asyncio
 @pytest.mark.e2e
-def test_survival_loop(db_session, monkeypatch):
+async def test_survival_loop(db_session, monkeypatch):
     # 1. Setup Genesis
     agent = seed_genesis_agent(db_session)
     assert agent.id == "genesis"
@@ -69,7 +74,7 @@ def test_survival_loop(db_session, monkeypatch):
     monkeypatch.setattr('builtins.input', lambda _: "8 9 7")
 
     db_session.commit()
-    run_system_loop(db_session)
+    await run_system_loop(db_session)
 
     # 3. Verify agent executed once
     db_session.commit()
@@ -84,24 +89,27 @@ def test_survival_loop(db_session, monkeypatch):
 
     # 5. Run loop 2 (Allocation + Execution of new bid)
     db_session.commit()
-    run_system_loop(db_session)
+    await run_system_loop(db_session)
     db_session.commit()
     db_session.refresh(agent)
     executions = db_session.query(Execution).filter_by(agent_id=agent.id, status="COMPLETED").count()
     assert executions == 2
 
+
+@pytest.mark.asyncio
 @pytest.mark.e2e
-def test_human_interaction(db_session, monkeypatch):
+async def test_human_interaction(db_session, monkeypatch):
     # 1. Setup agent with attention allocation
     agent = seed_genesis_agent(db_session)
 
-    # 2. Bootstrap with attention_share=1.0
+    # 2. Bootstrap with attention_percent=1.0
     from syntropism.domain.models import Bid, BidStatus, Execution, ResourceBundle
     bundle = ResourceBundle(
-        cpu_seconds=5.0,
-        memory_mb=128.0,
-        tokens=1000,
-        attention_share=1.0,
+        cpu_percent=0.1,
+        memory_percent=0.1,
+        tokens_percent=0.1,
+        attention_percent=1.0,
+        duration_seconds=5.0
     )
     db_session.add(bundle)
     db_session.flush()
@@ -130,36 +138,45 @@ def test_human_interaction(db_session, monkeypatch):
 
     # 4. Run loop
     initial_balance = agent.credit_balance
-    run_system_loop(db_session)
+    await run_system_loop(db_session)
 
     # 5. Verify credits awarded
     db_session.refresh(agent)
     assert agent.credit_balance > initial_balance
 
+
+@pytest.mark.asyncio
 @pytest.mark.e2e
-def test_agent_spawning(db_session):
-    # 1. Setup parent
-    parent = seed_genesis_agent(db_session)
+async def test_agent_spawning(db_session, monkeypatch):
+    # 1. Setup Genesis
+    agent = seed_genesis_agent(db_session)
 
-    # 2. Manually trigger spawn
-    from syntropism.core.genesis import spawn_child_agent
-    payload = {
-        "main.py": "print('Child agent running!')",
-    }
-    child = spawn_child_agent(db_session, parent.id, initial_credits=100.0, payload=payload)
+    # 2. Bootstrap
+    bootstrap_genesis_execution(db_session)
 
-    # 3. Verify child in DB
-    assert child.id.startswith("agent-") or len(child.id) == 36 # UUID
-    assert child.spawn_lineage == [parent.id]
+    # 3. Mock input() for human scores
+    monkeypatch.setattr('builtins.input', lambda _: "8 9 7")
 
-    # 4. Verify child has a workspace
-    assert child.workspace is not None
-    assert os.path.exists(child.workspace.filesystem_path)
+    # 4. Run loop
+    await run_system_loop(db_session)
 
-    # 5. Run loop and verify child can execute (if it has a bid)
-    # Create a bid for the child
+    # 5. Verify child agent created
+    child = db_session.query(Agent).filter(Agent.id != "genesis").first()
+    assert child is not None
+    assert child.spawn_lineage == ["genesis"]
+
+    # 6. Verify child has a workspace
+    assert child.workspace_id is not None
+
+    # 7. Run loop again to execute child
+    # Child needs a bid to be executed
     from syntropism.domain.models import Bid, BidStatus, Execution, ResourceBundle
-    bundle = ResourceBundle(cpu_seconds=5.0, memory_mb=128.0, tokens=1000)
+    bundle = ResourceBundle(
+        cpu_percent=0.1,
+        memory_percent=0.1,
+        tokens_percent=0.1,
+        duration_seconds=5.0
+    )
     db_session.add(bundle)
     db_session.flush()
 
@@ -183,7 +200,7 @@ def test_agent_spawning(db_session):
     db_session.commit()
 
     # Run loop
-    run_system_loop(db_session)
+    await run_system_loop(db_session)
 
     # Verify child executed
     db_session.commit()
@@ -191,8 +208,10 @@ def test_agent_spawning(db_session):
     executions = db_session.query(Execution).filter_by(agent_id=child.id, status="COMPLETED").count()
     assert executions == 1
 
+
+@pytest.mark.asyncio
 @pytest.mark.e2e
-def test_bid_competition(db_session):
+async def test_bid_competition(db_session):
     # 1. Setup two agents
     from syntropism.core.genesis import _create_agent_with_workspace
     workspace_root = os.path.join(os.getcwd(), "workspaces")
@@ -201,17 +220,17 @@ def test_bid_competition(db_session):
     db_session.commit()
 
     # 2. Place bids for same limited resource (e.g. Attention)
-    from syntropism.domain.models import Bid, BidStatus, ResourceBundle
     from syntropism.core.scheduler import AllocationScheduler
+    from syntropism.domain.models import Bid, BidStatus, ResourceBundle
 
     # A1 bids 10 for attention
-    b1_bundle = ResourceBundle(cpu_seconds=1.0, memory_mb=128.0, tokens=1000, attention_share=1.0)
+    b1_bundle = ResourceBundle(cpu_percent=0.1, memory_percent=0.1, tokens_percent=0.1, attention_percent=1.0, duration_seconds=5.0)
     db_session.add(b1_bundle)
     db_session.flush()
     AllocationScheduler.place_bid(db_session, a1.id, b1_bundle.id, 10.0)
 
     # A2 bids 20 for attention
-    b2_bundle = ResourceBundle(cpu_seconds=1.0, memory_mb=128.0, tokens=1000, attention_share=1.0)
+    b2_bundle = ResourceBundle(cpu_percent=0.1, memory_percent=0.1, tokens_percent=0.1, attention_percent=1.0, duration_seconds=5.0)
     db_session.add(b2_bundle)
     db_session.flush()
     AllocationScheduler.place_bid(db_session, a2.id, b2_bundle.id, 20.0)
@@ -219,7 +238,7 @@ def test_bid_competition(db_session):
     db_session.commit()
 
     # 3. Run allocation
-    AllocationScheduler.run_allocation_cycle(db_session)
+    await AllocationScheduler.run_allocation_cycle(db_session)
     db_session.commit()
 
     # 4. Verify A2 wins, A1 outbid
@@ -229,8 +248,10 @@ def test_bid_competition(db_session):
     assert bid2.status == BidStatus.WINNING
     assert bid1.status == BidStatus.OUTBID
 
+
+@pytest.mark.asyncio
 @pytest.mark.e2e
-def test_agent_death(db_session):
+async def test_agent_death(db_session):
     # 1. Setup agent with 1 credit
     from syntropism.core.genesis import _create_agent_with_workspace
     workspace_root = os.path.join(os.getcwd(), "workspaces")
@@ -238,10 +259,10 @@ def test_agent_death(db_session):
     db_session.commit()
 
     # 2. Place bid for 1 credit
-    from syntropism.domain.models import BidStatus, Execution, ResourceBundle
     from syntropism.core.scheduler import AllocationScheduler
+    from syntropism.domain.models import BidStatus, Execution, ResourceBundle
 
-    bundle = ResourceBundle(cpu_seconds=1.0, memory_mb=128.0, tokens=1000)
+    bundle = ResourceBundle(cpu_percent=0.1, memory_percent=0.1, tokens_percent=0.1, duration_seconds=5.0)
     db_session.add(bundle)
     db_session.flush()
 
@@ -264,7 +285,7 @@ def test_agent_death(db_session):
     db_session.commit()
 
     # 3. Run loop (Execution spends the credit, then death check runs)
-    run_system_loop(db_session)
+    await run_system_loop(db_session)
 
     # 4. Verify status is DEAD
     db_session.commit()

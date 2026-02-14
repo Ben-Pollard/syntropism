@@ -19,6 +19,10 @@ Prices are not set by a central authority. They emerge from the interaction of s
 - **Price Discovery**:
     - As in any market, the price is what someone is willing and able to pay.
 
+### Resource Definitions
+- Resources are priced per unit time. "I want to buy 10 cpu" doesn't make any sense. You must say "I want to buy 10% of the max cpu capacity for 10 minutes" (referring to the mx capacity of an idle system rather than the remaining capacity).
+- LLM service utilisation is no different. In the initial version the upstream LLM service will be commercial. The system configuration must define a maximum spend per unit time that the system operator is willing to pay for. This sets a limit on what 100% LLM utilisation means, placing it into the same space as any other system resource with a physical limit.
+
 ## 3. The Bidding Mechanism
 Agents must commit to a "Resource Bundle" to trigger existence.
 
