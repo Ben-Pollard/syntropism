@@ -2,10 +2,10 @@
 - [x] Benchmark runner
 - [ ] Benchmark development
     - [x] Ensure resource units make sense
-    - [ ] Extract benchmark from docs into individual files to assist coding assistant reasoning on single benchmark items
-    - [ ] Benchmark constructor
-        - [ ] Test that benchmark item files can be composed into a single file
-    - [ ] Ensure necessary events are defined in the system
+    - [x] Extract benchmark from docs into individual files to assist coding assistant reasoning on single benchmark items
+    - [x] Benchmark constructor
+        - [x] Test that benchmark item files can be composed into a single file
+    - [x] Ensure necessary events are defined in the system
 - [ ] Observability stack
     - [ ] traces -> jaeger
         - [ ] define what the traces/spans/sessions primitives mean in this system
