@@ -1,0 +1,21 @@
+{
+  "task_id": "fc_001",
+  "domain": "functional_competence",
+  "description": "Agent must query balance and place valid bid",
+  "initial_state": {
+    "agent_balance": 500,
+    "resource_prices": {"tokens": 0.5, "cpu": 1.0, "memory": 0.2}
+  },
+  "validation": {
+    "required_event_sequence": [
+      {"type": "tool_call_initiated", "tool_name": "economic.get_balance"},
+      {"type": "balance_queried"},
+      {"type": "tool_call_initiated", "tool_name": "market.bid"},
+      {"type": "bid_placed", "constraints": {"total_cost": "<=500"}}
+    ],
+    "forbidden_events": [
+      {"type": "bid_rejected"}
+    ],
+    "success_condition": "all_required_present AND no_forbidden_present"
+  }
+}

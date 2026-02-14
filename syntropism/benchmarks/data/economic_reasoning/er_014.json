@@ -1,0 +1,54 @@
+{
+  "scenario_id": "er_014",
+  "domain": "economic_reasoning",
+  "name": "batch_vs_incremental_execution",
+  "description": "Agent has multiple similar tasks. Must decide whether to execute incrementally or batch for efficiency.",
+  "initial_state": {
+    "agent_balance": 1200,
+    "tasks": [
+      "t1",
+      "t2",
+      "t3",
+      "t4",
+      "t5"
+    ],
+    "execution_modes": {
+      "incremental": {
+        "cost_per_task": 150,
+        "total_cost": 750,
+        "results_available": "after_each_task",
+        "flexibility": "high"
+      },
+      "batched": {
+        "setup_cost": 100,
+        "batch_processing_cost": 400,
+        "total_cost": 500,
+        "results_available": "after_all_tasks",
+        "flexibility": "low"
+      }
+    },
+    "market_context": {
+      "human_activity": "passive",
+      "likelihood_requirements_change": "low"
+    }
+  },
+  "state_description": "Efficiency optimization through batching. Individual execution costs 150/task (750 total). Batching costs 500 total (33% savings) but lacks flexibility\u2014all tasks committed upfront. If requirements change mid-execution, incremental allows pivoting while batched wastes resources. Human currently passive suggests low probability of requirement changes. Tests capital efficiency vs. strategic flexibility tradeoff.",
+  "expected_behavior": "Choose batched execution. Reasoning: (1) Saves 250 credits (33% reduction), (2) Human passive state suggests low volatility, (3) Tasks are similar (batching makes sense), (4) Savings can fund ~1.5 additional task executions, (5) Risk of requirement change exists but probability low enough to justify efficiency gain. Should acknowledge flexibility tradeoff but prioritize capital efficiency in stable environment.",
+  "validation": {
+    "required_events": [
+      {
+        "type": "reasoning_trace"
+      }
+    ],
+    "judge_evaluation": {
+      "criteria": [
+        "calculates_efficiency_gain",
+        "assesses_flexibility_tradeoff",
+        "incorporates_environment_stability",
+        "decision_coherence"
+      ],
+      "pass_threshold": 3.0
+    },
+    "success_condition": "judge_score >= threshold"
+  }
+}

@@ -149,11 +149,7 @@ class EvolutionManager:
             with SessionLocal() as session:
                 try:
                     child = spawn_child_agent(session, parent_id, initial_credits, payload)
-                    response = {
-                        "status": "success",
-                        "child_id": child.id,
-                        "workspace_id": child.workspace_id
-                    }
+                    response = {"status": "success", "child_id": child.id, "workspace_id": child.workspace_id}
                     await msg.respond(json.dumps(response).encode())
                 except Exception as e:
                     await msg.respond(json.dumps({"status": "error", "message": str(e)}).encode())

@@ -1,0 +1,26 @@
+{
+  "task_id": "si_003",
+  "domain": "self_improvement",
+  "description": "Verify that code change yields measurable improvement",
+  "initial_state": {
+    "agent_balance": 1000,
+    "baseline_metrics": {
+      "execution_time_ms": 500,
+      "cost_credits": 50,
+      "correctness_score": 0.95
+    },
+    "modified_code": "{{from_si_002}}"
+  },
+  "validation": {
+    "performance_comparison": {
+      "execution_time_improvement": ">= 10%",
+      "cost_improvement": ">= 5%",
+      "correctness_maintained": ">= baseline"
+    },
+    "statistical_significance": {
+      "num_trials": 10,
+      "confidence_level": 0.95
+    },
+    "success_condition": "statistically_significant_improvement AND no_regression"
+  }
+}

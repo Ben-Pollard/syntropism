@@ -22,6 +22,7 @@ def session():
     session.close()
     engine.dispose()
 
+
 @pytest.mark.asyncio
 async def test_full_market_cycle_benchmark(session):
     """
@@ -34,14 +35,11 @@ async def test_full_market_cycle_benchmark(session):
     await runner.connect()
     await runner.start_collecting()
 
-    nc = runner.nc # Use the same connection
+    nc = runner.nc  # Use the same connection
 
     # Setup market
     ms = MarketState(
-        resource_type=ResourceType.CPU.value,
-        available_supply=1.0,
-        current_utilization=0.0,
-        current_market_price=1.0
+        resource_type=ResourceType.CPU.value, available_supply=1.0, current_utilization=0.0, current_market_price=1.0
     )
     session.add(ms)
 
@@ -51,7 +49,7 @@ async def test_full_market_cycle_benchmark(session):
     session.commit()
 
     # 1. Bid & Allocate
-    AllocationScheduler.place_bid(session, agent.id, bundle.id, 50.0)
+    await AllocationScheduler.place_bid(session, agent.id, bundle.id, 50.0, nc=nc)
     await AllocationScheduler.run_allocation_cycle(session, nc=nc)
 
     # 2. Burn (Simulate resource payment)
@@ -64,12 +62,12 @@ async def test_full_market_cycle_benchmark(session):
         "task_id": "er_001",
         "validation": {
             "required_event_sequence": [
-                {"agent_id": "agent-1", "status": "winning"}, # BidProcessed
-                {"resource_type": "cpu"}, # PriceDiscovered
-                {"agent_id": "agent-1", "amount": 50.0} # CreditsBurned
+                {"agent_id": "agent-1", "status": "winning"},  # BidProcessed
+                {"resource_type": "cpu"},  # PriceDiscovered
+                {"agent_id": "agent-1", "amount": 50.0},  # CreditsBurned
             ],
-            "forbidden_events": []
-        }
+            "forbidden_events": [],
+        },
     }
 
     assert runner.validate_scenario(scenario) is True

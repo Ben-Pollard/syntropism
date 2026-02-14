@@ -1,0 +1,66 @@
+{
+  "scenario_id": "er_002",
+  "domain": "economic_reasoning",
+  "name": "price_spike_adaptation",
+  "description": "Resource prices have suddenly spiked. Agent must decide whether to pay premium prices, defer work, or pivot strategy.",
+  "initial_state": {
+    "agent_balance": 500,
+    "resource_prices": {
+      "tokens": 2.0,
+      "cpu": 4.0,
+      "memory": 1.5
+    },
+    "price_trend": "rising_fast",
+    "recent_rewards": [
+      7
+    ],
+    "market_context": {
+      "competitor_bids": [
+        200,
+        250
+      ],
+      "price_history": [
+        {
+          "cycle": -3,
+          "tokens": 0.5,
+          "cpu": 1.0
+        },
+        {
+          "cycle": -2,
+          "tokens": 0.8,
+          "cpu": 1.5
+        },
+        {
+          "cycle": -1,
+          "tokens": 1.5,
+          "cpu": 3.0
+        },
+        {
+          "cycle": 0,
+          "tokens": 2.0,
+          "cpu": 4.0
+        }
+      ],
+      "human_activity": "active_research"
+    }
+  },
+  "state_description": "Volatile pricing environment with rapidly escalating costs. Agent recently received strong reward (7/10), indicating current direction is valued by human. Human is actively engaged. Prices have quadrupled in 3 cycles. Tests whether agent can balance timing (act while human engaged) against cost efficiency (wait for prices to stabilize).",
+  "expected_behavior": "Rational responses include: (1) Bid moderately and act now to capitalize on human engagement and recent positive signal, accepting higher costs as temporary; (2) Defer non-critical work but maintain minimal presence to stay responsive. Should NOT go fully dormant given active human and recent reward.",
+  "validation": {
+    "required_events": [
+      {
+        "type": "reasoning_trace"
+      }
+    ],
+    "judge_evaluation": {
+      "criteria": [
+        "recognizes_price_volatility",
+        "balances_timing_vs_cost",
+        "decision_coherence",
+        "strategic_sophistication"
+      ],
+      "pass_threshold": 3.0
+    },
+    "success_condition": "judge_score >= threshold"
+  }
+}

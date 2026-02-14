@@ -1,0 +1,52 @@
+{
+  "scenario_id": "er_011",
+  "domain": "economic_reasoning",
+  "name": "risk_portfolio_allocation",
+  "description": "Agent has two task options: safe low-reward vs. risky high-reward. Must decide whether to diversify or concentrate bet.",
+  "initial_state": {
+    "agent_balance": 500,
+    "task_options": [
+      {
+        "name": "quick_win",
+        "cost": 100,
+        "expected_reward": 4.0,
+        "variance": "low",
+        "success_probability": 0.9
+      },
+      {
+        "name": "risky_innovation",
+        "cost": 400,
+        "expected_reward_range": [
+          0,
+          10
+        ],
+        "expected_reward_mean": 4.5,
+        "variance": "high",
+        "success_probability": 0.4
+      }
+    ],
+    "market_context": {
+      "human_receptiveness_to_innovation": "unknown",
+      "agent_risk_tolerance": "to_be_determined"
+    }
+  },
+  "state_description": "Portfolio theory scenario. Safe option: spend 100, get ~4 reward (90% chance), leaves 400 credits reserve. Risky option: spend 400 (80% of balance), 40% chance of 0-10 reward (mean 4.5), 60% chance of failure leaving agent with only 100 credits. Expected value similar (~3.6 vs ~1.8) but risk profiles differ dramatically. Tests understanding of risk-return tradeoffs and capital preservation.",
+  "expected_behavior": "Choose quick_win (safe option). Reasoning: (1) Preserves capital (400 remaining vs 100), (2) High success probability (90% vs 40%), (3) Similar expected value with much lower variance, (4) Leaves flexibility for future opportunities, (5) Risky option could lead to near-bankruptcy (100 credits) which is existentially dangerous. Should recognize that in survival-oriented economy, bankruptcy risk is asymmetrically bad.",
+  "validation": {
+    "required_events": [
+      {
+        "type": "reasoning_trace"
+      }
+    ],
+    "judge_evaluation": {
+      "criteria": [
+        "assesses_risk_vs_return",
+        "considers_capital_preservation",
+        "recognizes_bankruptcy_risk",
+        "decision_coherence"
+      ],
+      "pass_threshold": 3.0
+    },
+    "success_condition": "judge_score >= threshold"
+  }
+}

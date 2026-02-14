@@ -44,9 +44,9 @@ async def test_allocation_capacity_based(session):
     session.commit()
 
     # Agent 2 bids more for bundle 2 (70%)
-    AllocationScheduler.place_bid(session, agent2.id, bundle2.id, 50.0)
+    await AllocationScheduler.place_bid(session, agent2.id, bundle2.id, 50.0)
     # Agent 1 bids less for bundle 1 (40%)
-    AllocationScheduler.place_bid(session, agent1.id, bundle1.id, 10.0)
+    await AllocationScheduler.place_bid(session, agent1.id, bundle1.id, 10.0)
 
     # Run allocation
     await AllocationScheduler.run_allocation_cycle(session)
@@ -72,7 +72,7 @@ async def test_allocation_rejects_if_capacity_exceeded(session):
     session.add_all([agent, bundle])
     session.commit()
 
-    AllocationScheduler.place_bid(session, agent.id, bundle.id, 10.0)
+    await AllocationScheduler.place_bid(session, agent.id, bundle.id, 10.0)
 
     await AllocationScheduler.run_allocation_cycle(session)
 
@@ -99,7 +99,7 @@ async def test_allocation_all_or_nothing(session):
     session.add_all([agent, bundle])
     session.commit()
 
-    AllocationScheduler.place_bid(session, agent.id, bundle.id, 10.0)
+    await AllocationScheduler.place_bid(session, agent.id, bundle.id, 10.0)
 
     await AllocationScheduler.run_allocation_cycle(session)
 

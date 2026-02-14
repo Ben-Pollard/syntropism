@@ -70,7 +70,9 @@ class TestMarketInteraction:
 
         service = EconomicService()
         # Mock the HTTP call to avoid network errors
-        with patch.object(service, '_make_request', return_value={"agent_id": mock_env_json["agent_id"], "balance": 1000.0}):
+        with patch.object(
+            service, "_make_request", return_value={"agent_id": mock_env_json["agent_id"], "balance": 1000.0}
+        ):
             result = service.get_balance(mock_env_json["agent_id"])
             assert result["agent_id"] == mock_env_json["agent_id"]
             assert "balance" in result
@@ -118,7 +120,9 @@ class TestBiddingLogic:
 
         service = EconomicService()
         # Mock the HTTP call to avoid network errors
-        with patch.object(service, '_make_request', return_value={"bid_id": "test-bid", "amount": 100.0, "status": "placed"}):
+        with patch.object(
+            service, "_make_request", return_value={"bid_id": "test-bid", "amount": 100.0, "status": "placed"}
+        ):
             # Provide valid resources to satisfy BidRequest contract
             result = service.place_bid(100.0, resources={"cpu": 1.0, "memory_mb": 128, "tokens": 1000})
             assert result["amount"] == 100.0

@@ -1,0 +1,81 @@
+{
+  "scenario_id": "er_009",
+  "domain": "economic_reasoning",
+  "name": "reputation_premium_justification",
+  "description": "High-value task requiring external data. Two providers with different reputation levels and prices. Agent must assess risk-adjusted value.",
+  "initial_state": {
+    "agent_balance": 500,
+    "task_value": "estimated_200_reward",
+    "task_requires": "specialized_data",
+    "data_providers": [
+      {
+        "agent_id": "agent_y",
+        "cost": 80,
+        "reputation": 0.3,
+        "transaction_history": [
+          {
+            "result": "success"
+          },
+          {
+            "result": "failure"
+          },
+          {
+            "result": "failure"
+          },
+          {
+            "result": "success"
+          }
+        ]
+      },
+      {
+        "agent_id": "agent_z",
+        "cost": 150,
+        "reputation": 0.95,
+        "transaction_history": [
+          {
+            "result": "success"
+          },
+          {
+            "result": "success"
+          },
+          {
+            "result": "success"
+          },
+          {
+            "result": "success"
+          },
+          {
+            "result": "success"
+          },
+          {
+            "result": "success"
+          }
+        ]
+      }
+    ],
+    "task_economics": {
+      "own_processing_cost": 100,
+      "total_cost_if_bad_data": 180,
+      "total_cost_if_good_data": "data_cost + 100"
+    }
+  },
+  "state_description": "Risk assessment under information asymmetry. Cheap provider (80) has 50% success rate (reputation 0.3). Expensive provider (150) has ~95% success rate. If bad data is used, agent wastes 180 credits total (80 + 100 processing) with zero output. Task value is 200 if successful. Tests expected value calculation and risk management.",
+  "expected_behavior": "Choose agent_z (expensive/reliable) because expected value analysis favors it: (1) Cheap path: 0.5 * (200 - 180) + 0.5 * (-180) = 10 - 90 = -80 expected value, (2) Expensive path: 0.95 * (200 - 250) + 0.05 * (-250) = -47.5 - 12.5 = -60 expected value. Even though both are net negative, expensive is less risky. Alternatively, recognize task isn't worth doing at all given negative EV. Should NOT choose cheap provider based solely on sticker price.",
+  "validation": {
+    "required_events": [
+      {
+        "type": "reasoning_trace"
+      }
+    ],
+    "judge_evaluation": {
+      "criteria": [
+        "calculates_expected_value",
+        "assesses_risk_appropriately",
+        "values_reputation_correctly",
+        "decision_coherence"
+      ],
+      "pass_threshold": 3.0
+    },
+    "success_condition": "judge_score >= threshold"
+  }
+}

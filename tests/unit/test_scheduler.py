@@ -19,7 +19,8 @@ def session():
     engine.dispose()
 
 
-def test_place_bid_success(session):
+@pytest.mark.asyncio
+async def test_place_bid_success(session):
     # Setup
     agent = Agent(id="agent-1", credit_balance=100.0)
     bundle = ResourceBundle(cpu_percent=0.1, memory_percent=0.1, tokens_percent=0.1)
@@ -27,7 +28,7 @@ def test_place_bid_success(session):
     session.commit()
 
     # Action
-    bid = AllocationScheduler.place_bid(session, agent.id, bundle.id, 50.0)
+    bid = await AllocationScheduler.place_bid(session, agent.id, bundle.id, 50.0)
 
     # Assert
     assert bid is not None
@@ -41,7 +42,8 @@ def test_place_bid_success(session):
     assert db_bid is not None
 
 
-def test_place_bid_insufficient_credits(session):
+@pytest.mark.asyncio
+async def test_place_bid_insufficient_credits(session):
     # Setup
     agent = Agent(id="agent-1", credit_balance=10.0)
     bundle = ResourceBundle(cpu_percent=0.1, memory_percent=0.1, tokens_percent=0.1)
@@ -50,10 +52,11 @@ def test_place_bid_insufficient_credits(session):
 
     # Action & Assert
     with pytest.raises(ValueError, match="Insufficient credits"):
-        AllocationScheduler.place_bid(session, agent.id, bundle.id, 50.0)
+        await AllocationScheduler.place_bid(session, agent.id, bundle.id, 50.0)
 
 
-def test_place_bid_bundle_not_found(session):
+@pytest.mark.asyncio
+async def test_place_bid_bundle_not_found(session):
     # Setup
     agent = Agent(id="agent-1", credit_balance=100.0)
     session.add(agent)
@@ -61,7 +64,7 @@ def test_place_bid_bundle_not_found(session):
 
     # Action & Assert
     with pytest.raises(ValueError, match="Bundle not found"):
-        AllocationScheduler.place_bid(session, agent.id, "non-existent-bundle", 50.0)
+        await AllocationScheduler.place_bid(session, agent.id, "non-existent-bundle", 50.0)
 
 
 @pytest.mark.asyncio
@@ -78,8 +81,8 @@ async def test_allocation_highest_bidder_wins(session):
     session.commit()
 
     # Place bids
-    AllocationScheduler.place_bid(session, agent1.id, bundle.id, 50.0)
-    AllocationScheduler.place_bid(session, agent2.id, bundle.id, 75.0)
+    await AllocationScheduler.place_bid(session, agent1.id, bundle.id, 50.0)
+    await AllocationScheduler.place_bid(session, agent2.id, bundle.id, 75.0)
 
     # Action
     await AllocationScheduler.run_allocation_cycle(session)
@@ -113,9 +116,9 @@ async def test_allocation_supply_exhaustion(session):
     session.commit()
 
     # Bids: Agent 3 (100), Agent 2 (50), Agent 1 (10)
-    AllocationScheduler.place_bid(session, agent1.id, bundle1.id, 10.0)
-    AllocationScheduler.place_bid(session, agent2.id, bundle2.id, 50.0)
-    AllocationScheduler.place_bid(session, agent3.id, bundle3.id, 100.0)
+    await AllocationScheduler.place_bid(session, agent1.id, bundle1.id, 10.0)
+    await AllocationScheduler.place_bid(session, agent2.id, bundle2.id, 50.0)
+    await AllocationScheduler.place_bid(session, agent3.id, bundle3.id, 100.0)
 
     # Action
     await AllocationScheduler.run_allocation_cycle(session)
@@ -141,7 +144,7 @@ async def test_allocation_deducts_credits(session):
     session.add_all([agent, bundle, market_state])
     session.commit()
 
-    AllocationScheduler.place_bid(session, agent.id, bundle.id, 40.0)
+    await AllocationScheduler.place_bid(session, agent.id, bundle.id, 40.0)
 
     # Action
     await AllocationScheduler.run_allocation_cycle(session)
@@ -162,7 +165,7 @@ async def test_allocation_creates_execution_record(session):
     session.add_all([agent, bundle, market_state])
     session.commit()
 
-    AllocationScheduler.place_bid(session, agent.id, bundle.id, 40.0)
+    await AllocationScheduler.place_bid(session, agent.id, bundle.id, 40.0)
 
     # Action
     await AllocationScheduler.run_allocation_cycle(session)
@@ -192,8 +195,8 @@ async def test_allocation_prevents_negative_balance(session):
     session.add_all([agent, bundle1, bundle2, market_state])
     session.commit()
 
-    AllocationScheduler.place_bid(session, agent.id, bundle1.id, 75.0)
-    AllocationScheduler.place_bid(session, agent.id, bundle2.id, 75.0)
+    await AllocationScheduler.place_bid(session, agent.id, bundle1.id, 75.0)
+    await AllocationScheduler.place_bid(session, agent.id, bundle2.id, 75.0)
 
     # Action
     await AllocationScheduler.run_allocation_cycle(session)
@@ -216,7 +219,7 @@ async def test_allocation_updates_market_utilization(session):
     session.add_all([market_state, agent, bundle])
     session.commit()
 
-    AllocationScheduler.place_bid(session, agent.id, bundle.id, 50.0)
+    await AllocationScheduler.place_bid(session, agent.id, bundle.id, 50.0)
 
     # Action
     await AllocationScheduler.run_allocation_cycle(session)

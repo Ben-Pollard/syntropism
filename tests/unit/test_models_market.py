@@ -8,6 +8,7 @@ from syntropism.infra.database import Base
 # Use in-memory SQLite for testing
 SQLALCHEMY_DATABASE_URL = "sqlite:///:memory:"
 
+
 @pytest.fixture
 def db_session():
     engine = create_engine(SQLALCHEMY_DATABASE_URL, connect_args={"check_same_thread": False})
@@ -19,16 +20,13 @@ def db_session():
     finally:
         session.close()
 
+
 def test_resource_bundle_capacity_fields(db_session):
     """
     Verify that ResourceBundle supports capacity percentages and duration.
     """
     bundle = ResourceBundle(
-        cpu_percent=0.5,
-        memory_percent=0.25,
-        tokens_percent=0.1,
-        attention_percent=1.0,
-        duration_seconds=60.0
+        cpu_percent=0.5, memory_percent=0.25, tokens_percent=0.1, attention_percent=1.0, duration_seconds=60.0
     )
     db_session.add(bundle)
     db_session.commit()
@@ -40,6 +38,7 @@ def test_resource_bundle_capacity_fields(db_session):
     assert saved_bundle.attention_percent == 1.0
     assert saved_bundle.duration_seconds == 60.0
 
+
 def test_market_state_capacity_supply(db_session):
     """
     Verify that MarketState tracks supply as a capacity measure.
@@ -48,7 +47,7 @@ def test_market_state_capacity_supply(db_session):
         resource_type="cpu",
         available_supply=1.0,  # 100% capacity
         current_utilization=0.4,
-        current_market_price=10.0
+        current_market_price=10.0,
     )
     db_session.add(market)
     db_session.commit()

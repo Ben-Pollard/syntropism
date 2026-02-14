@@ -3,11 +3,11 @@ import json
 import nats
 import pytest
 
-from syntropism.infra.database import Base, SessionLocal, engine
 from syntropism.domain.economy import EconomicEngine
 from syntropism.domain.market import MarketManager, ResourceType
 from syntropism.domain.models import Agent, MarketState
 from syntropism.domain.social import SocialManager
+from syntropism.infra.database import Base, SessionLocal, engine
 
 
 @pytest.fixture(scope="module", autouse=True)
@@ -15,6 +15,7 @@ def setup_database():
     Base.metadata.create_all(bind=engine)
     yield
     Base.metadata.drop_all(bind=engine)
+
 
 @pytest.mark.asyncio
 async def test_economic_balance_nats(nats_server):
@@ -41,6 +42,7 @@ async def test_economic_balance_nats(nats_server):
     finally:
         await nc.close()
         await handler_nc.close()
+
 
 @pytest.mark.asyncio
 async def test_market_state_nats(nats_server):
@@ -71,6 +73,7 @@ async def test_market_state_nats(nats_server):
         await nc.close()
         await handler_nc.close()
 
+
 @pytest.mark.asyncio
 async def test_social_message_nats(nats_server):
     # Setup: Create agents in the DB
@@ -91,11 +94,7 @@ async def test_social_message_nats(nats_server):
     nc = await nats.connect(nats_server)
 
     try:
-        payload = {
-            "from_id": agent_1,
-            "to_id": agent_2,
-            "content": "Hello from NATS!"
-        }
+        payload = {"from_id": agent_1, "to_id": agent_2, "content": "Hello from NATS!"}
         response = await nc.request("social.message", json.dumps(payload).encode(), timeout=2)
         data = json.loads(response.data)
         assert data["status"] == "success"

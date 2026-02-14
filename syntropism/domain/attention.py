@@ -18,7 +18,10 @@ class AttentionManager:
             raise ValueError(f"Execution {execution_id} not found")
 
         # Check execution.resource_bundle.attention_percent > 0
-        if not (execution.resource_bundle and (execution.resource_bundle.attention_percent > 0 or execution.resource_bundle.attention_share > 0)):
+        if not (
+            execution.resource_bundle
+            and (execution.resource_bundle.attention_percent > 0 or execution.resource_bundle.attention_share > 0)
+        ):
             raise ValueError("Agent does not have attention allocation for this execution")
 
         # Lock agent for update to prevent race conditions
@@ -124,4 +127,3 @@ class AttentionManager:
         prompt.status = PromptStatus.RESPONDED
 
         return response
-

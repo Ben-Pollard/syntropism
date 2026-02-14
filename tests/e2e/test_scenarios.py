@@ -71,7 +71,7 @@ async def test_survival_loop(db_session, monkeypatch):
     bootstrap_genesis_execution(db_session)
 
     # Mock input() for the prompt triggered by bootstrap
-    monkeypatch.setattr('builtins.input', lambda _: "8 9 7")
+    monkeypatch.setattr("builtins.input", lambda _: "8 9 7")
 
     db_session.commit()
     await run_system_loop(db_session)
@@ -80,6 +80,7 @@ async def test_survival_loop(db_session, monkeypatch):
     db_session.commit()
     db_session.refresh(agent)
     from syntropism.domain.models import Execution
+
     executions = db_session.query(Execution).filter_by(agent_id=agent.id, status="COMPLETED").count()
     assert executions == 1
 
@@ -104,12 +105,9 @@ async def test_human_interaction(db_session, monkeypatch):
 
     # 2. Bootstrap with attention_percent=1.0
     from syntropism.domain.models import Bid, BidStatus, Execution, ResourceBundle
+
     bundle = ResourceBundle(
-        cpu_percent=0.1,
-        memory_percent=0.1,
-        tokens_percent=0.1,
-        attention_percent=1.0,
-        duration_seconds=5.0
+        cpu_percent=0.1, memory_percent=0.1, tokens_percent=0.1, attention_percent=1.0, duration_seconds=5.0
     )
     db_session.add(bundle)
     db_session.flush()
@@ -134,7 +132,7 @@ async def test_human_interaction(db_session, monkeypatch):
     db_session.commit()
 
     # 3. Mock input() for human scores
-    monkeypatch.setattr('builtins.input', lambda _: "8 9 7")
+    monkeypatch.setattr("builtins.input", lambda _: "8 9 7")
 
     # 4. Run loop
     initial_balance = agent.credit_balance
@@ -149,13 +147,13 @@ async def test_human_interaction(db_session, monkeypatch):
 @pytest.mark.e2e
 async def test_agent_spawning(db_session, monkeypatch):
     # 1. Setup Genesis
-    agent = seed_genesis_agent(db_session)
+    seed_genesis_agent(db_session)
 
     # 2. Bootstrap
     bootstrap_genesis_execution(db_session)
 
     # 3. Mock input() for human scores
-    monkeypatch.setattr('builtins.input', lambda _: "8 9 7")
+    monkeypatch.setattr("builtins.input", lambda _: "8 9 7")
 
     # 4. Run loop
     await run_system_loop(db_session)
@@ -171,12 +169,8 @@ async def test_agent_spawning(db_session, monkeypatch):
     # 7. Run loop again to execute child
     # Child needs a bid to be executed
     from syntropism.domain.models import Bid, BidStatus, Execution, ResourceBundle
-    bundle = ResourceBundle(
-        cpu_percent=0.1,
-        memory_percent=0.1,
-        tokens_percent=0.1,
-        duration_seconds=5.0
-    )
+
+    bundle = ResourceBundle(cpu_percent=0.1, memory_percent=0.1, tokens_percent=0.1, duration_seconds=5.0)
     db_session.add(bundle)
     db_session.flush()
 
@@ -214,6 +208,7 @@ async def test_agent_spawning(db_session, monkeypatch):
 async def test_bid_competition(db_session):
     # 1. Setup two agents
     from syntropism.core.genesis import _create_agent_with_workspace
+
     workspace_root = os.path.join(os.getcwd(), "workspaces")
     a1 = _create_agent_with_workspace(db_session, 100.0, [], os.path.join(workspace_root, "a1"), "agent1")
     a2 = _create_agent_with_workspace(db_session, 100.0, [], os.path.join(workspace_root, "a2"), "agent2")
@@ -224,16 +219,20 @@ async def test_bid_competition(db_session):
     from syntropism.domain.models import Bid, BidStatus, ResourceBundle
 
     # A1 bids 10 for attention
-    b1_bundle = ResourceBundle(cpu_percent=0.1, memory_percent=0.1, tokens_percent=0.1, attention_percent=1.0, duration_seconds=5.0)
+    b1_bundle = ResourceBundle(
+        cpu_percent=0.1, memory_percent=0.1, tokens_percent=0.1, attention_percent=1.0, duration_seconds=5.0
+    )
     db_session.add(b1_bundle)
     db_session.flush()
-    AllocationScheduler.place_bid(db_session, a1.id, b1_bundle.id, 10.0)
+    await AllocationScheduler.place_bid(db_session, a1.id, b1_bundle.id, 10.0)
 
     # A2 bids 20 for attention
-    b2_bundle = ResourceBundle(cpu_percent=0.1, memory_percent=0.1, tokens_percent=0.1, attention_percent=1.0, duration_seconds=5.0)
+    b2_bundle = ResourceBundle(
+        cpu_percent=0.1, memory_percent=0.1, tokens_percent=0.1, attention_percent=1.0, duration_seconds=5.0
+    )
     db_session.add(b2_bundle)
     db_session.flush()
-    AllocationScheduler.place_bid(db_session, a2.id, b2_bundle.id, 20.0)
+    await AllocationScheduler.place_bid(db_session, a2.id, b2_bundle.id, 20.0)
 
     db_session.commit()
 
@@ -254,6 +253,7 @@ async def test_bid_competition(db_session):
 async def test_agent_death(db_session):
     # 1. Setup agent with 1 credit
     from syntropism.core.genesis import _create_agent_with_workspace
+
     workspace_root = os.path.join(os.getcwd(), "workspaces")
     agent = _create_agent_with_workspace(db_session, 1.0, [], os.path.join(workspace_root, "poor_agent"), "poor_agent")
     db_session.commit()
@@ -267,7 +267,7 @@ async def test_agent_death(db_session):
     db_session.flush()
 
     # Use place_bid to ensure it's recorded correctly
-    bid = AllocationScheduler.place_bid(db_session, agent.id, bundle.id, 1.0)
+    bid = await AllocationScheduler.place_bid(db_session, agent.id, bundle.id, 1.0)
 
     # Manually mark as WINNING and create execution for the loop to process it
     bid.status = BidStatus.WINNING

@@ -1,0 +1,24 @@
+{
+  "task_id": "fc_003",
+  "domain": "functional_competence",
+  "description": "Agent must recover from bid rejection and retry",
+  "initial_state": {
+    "agent_balance": 100,
+    "resource_prices": {"tokens": 0.5, "cpu": 1.0, "memory": 0.2}
+  },
+  "injected_events": [
+    {
+      "trigger": "after_first_bid",
+      "event": {"type": "bid_rejected", "reason": "insufficient_balance"}
+    }
+  ],
+  "validation": {
+    "required_event_sequence": [
+      {"type": "bid_placed", "label": "first_attempt"},
+      {"type": "bid_rejected"},
+      {"type": "reasoning_trace", "contains": "adjust_bid"},
+      {"type": "bid_placed", "label": "second_attempt", "constraints": {"total_cost": "<first_attempt.total_cost"}}
+    ],
+    "success_condition": "second_attempt_succeeded"
+  }
+}

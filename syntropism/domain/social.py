@@ -3,10 +3,10 @@ import json
 import nats
 from sqlalchemy.orm import Session
 
-from syntropism.domain.attention import AttentionManager
-from syntropism.infra.database import SessionLocal
 from syntropism.core.genesis import spawn_child_agent
+from syntropism.domain.attention import AttentionManager
 from syntropism.domain.models import Message
+from syntropism.infra.database import SessionLocal
 
 
 class SocialManager:
@@ -28,12 +28,7 @@ class SocialManager:
             data = json.loads(msg.data)
             with SessionLocal() as session:
                 try:
-                    message = self.send_message(
-                        session,
-                        data["from_id"],
-                        data["to_id"],
-                        data["content"]
-                    )
+                    message = self.send_message(session, data["from_id"], data["to_id"], data["content"])
                     await msg.respond(json.dumps({"status": "success", "message_id": message.id}).encode())
                 except Exception as e:
                     await msg.respond(json.dumps({"status": "error", "message": str(e)}).encode())
@@ -42,17 +37,12 @@ class SocialManager:
             data = json.loads(msg.data)
             with SessionLocal() as session:
                 try:
-                    child = self.spawn_agent(
-                        session,
-                        data["parent_id"],
-                        data["initial_credits"],
-                        data.get("payload")
+                    child = self.spawn_agent(session, data["parent_id"], data["initial_credits"], data.get("payload"))
+                    await msg.respond(
+                        json.dumps(
+                            {"status": "success", "child_id": child.id, "workspace_id": child.workspace_id}
+                        ).encode()
                     )
-                    await msg.respond(json.dumps({
-                        "status": "success",
-                        "child_id": child.id,
-                        "workspace_id": child.workspace_id
-                    }).encode())
                 except Exception as e:
                     await msg.respond(json.dumps({"status": "error", "message": str(e)}).encode())
 
@@ -61,11 +51,7 @@ class SocialManager:
             with SessionLocal() as session:
                 try:
                     prompt = AttentionManager.submit_prompt(
-                        session,
-                        data["agent_id"],
-                        data["execution_id"],
-                        data["content"],
-                        data["bid_amount"]
+                        session, data["agent_id"], data["execution_id"], data["content"], data["bid_amount"]
                     )
                     session.commit()
                     await msg.respond(json.dumps({"status": "success", "prompt_id": prompt.id}).encode())

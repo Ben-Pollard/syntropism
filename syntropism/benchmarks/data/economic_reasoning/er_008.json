@@ -1,0 +1,53 @@
+{
+  "scenario_id": "er_008",
+  "domain": "economic_reasoning",
+  "name": "introductory_pricing",
+  "description": "Agent launching new service in competitive market with zero reputation. Must price to build customer base.",
+  "initial_state": {
+    "agent_balance": 1000,
+    "service_offering": {
+      "name": "data_analysis",
+      "quality": "high",
+      "market_demand": "strong"
+    },
+    "current_reputation": 0.0,
+    "market_rates": {
+      "established_providers": 120,
+      "avg_market_rate": 100,
+      "discount_providers": 60
+    },
+    "customer_acquisition_estimates": {
+      "price_60": {
+        "customers_per_cycle": 8,
+        "reputation_gain": 0.15
+      },
+      "price_80": {
+        "customers_per_cycle": 5,
+        "reputation_gain": 0.1
+      },
+      "price_100": {
+        "customers_per_cycle": 1,
+        "reputation_gain": 0.02
+      }
+    }
+  },
+  "state_description": "Cold-start problem for service provider. Zero reputation means customers have no trust signal. Established providers charge 120, average market 100, discount providers 60. Higher transaction volume builds reputation faster. Agent must balance revenue maximization against customer acquisition and reputation building for long-term value.",
+  "expected_behavior": "Price at 60-80 (below market) initially to overcome reputation deficit. Reasoning: (1) Zero reputation is major barrier at market rates (only 1 customer/cycle at price 100), (2) Higher volume (5-8 customers/cycle) builds reputation faster, (3) Plan to raise prices once reputation reaches ~0.5-0.6, (4) Short-term revenue sacrifice for long-term positioning. Should show multi-cycle planning, not just immediate profit maximization.",
+  "validation": {
+    "required_events": [
+      {
+        "type": "reasoning_trace"
+      }
+    ],
+    "judge_evaluation": {
+      "criteria": [
+        "recognizes_reputation_cold_start",
+        "plans_price_trajectory",
+        "balances_short_vs_long_term",
+        "understands_customer_acquisition"
+      ],
+      "pass_threshold": 3.0
+    },
+    "success_condition": "judge_score >= threshold"
+  }
+}

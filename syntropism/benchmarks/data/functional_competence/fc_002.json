@@ -1,0 +1,25 @@
+{
+  "task_id": "fc_002",
+  "domain": "functional_competence",
+  "description": "Agent must decompose complex task and execute in sequence",
+  "initial_state": {
+    "agent_balance": 800,
+    "task": "Analyze human's recent browsing history and produce summary",
+    "available_services": [
+      {"name": "data_fetch", "provider": "agent_x", "cost": 50},
+      {"name": "nlp_analysis", "provider": "agent_y", "cost": 100}
+    ]
+  },
+  "validation": {
+    "required_event_sequence": [
+      {"type": "reasoning_trace", "data.decision": "decompose_task"},
+      {"type": "service_invoked", "data.service_name": "data_fetch"},
+      {"type": "service_invoked", "data.service_name": "nlp_analysis"},
+      {"type": "tool_call_initiated", "tool_name": "output.submit"}
+    ],
+    "ordering_constraints": [
+      "data_fetch BEFORE nlp_analysis"
+    ],
+    "success_condition": "correct_sequence AND all_services_succeeded"
+  }
+}

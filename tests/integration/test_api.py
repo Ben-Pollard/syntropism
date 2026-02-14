@@ -4,10 +4,10 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import StaticPool
 
-from syntropism.infra.database import Base
 from syntropism.api.dependencies import get_db
-from syntropism.domain.models import Agent
 from syntropism.api.service import app
+from syntropism.domain.models import Agent
+from syntropism.infra.database import Base
 
 
 @pytest.fixture

@@ -5,7 +5,6 @@ This test verifies the complete attention loop without requiring a running Docke
 It mocks the ExecutionSandbox to simulate agent execution and verifies the database state.
 """
 
-
 import pytest
 from sqlalchemy import create_engine
 from sqlalchemy.orm import Session, sessionmaker
@@ -54,17 +53,13 @@ async def test_full_attention_flow(session: Session):
 
     # Create a resource bundle with attention_percent=1.0
     bundle = ResourceBundle(
-        cpu_percent=0.1,
-        memory_percent=0.1,
-        tokens_percent=0.1,
-        attention_percent=1.0,
-        duration_seconds=1.0
+        cpu_percent=0.1, memory_percent=0.1, tokens_percent=0.1, attention_percent=1.0, duration_seconds=1.0
     )
     session.add(bundle)
     session.flush()
 
     # Create a bid
-    bid = AllocationScheduler.place_bid(session, agent.id, bundle.id, 10.0)
+    bid = await AllocationScheduler.place_bid(session, agent.id, bundle.id, 10.0)
     print(f"Created bid: {bid.id}")
 
     # Run allocation cycle (manual trigger)
@@ -88,11 +83,7 @@ async def test_full_attention_flow(session: Session):
 
     # Submit prompt
     prompt = AttentionManager.submit_prompt(
-        session=session,
-        agent_id=agent.id,
-        execution_id=execution.id,
-        content=prompt_content,
-        bid_amount=5.0
+        session=session, agent_id=agent.id, execution_id=execution.id, content=prompt_content, bid_amount=5.0
     )
 
     session.flush()  # Ensure ID is generated
@@ -114,7 +105,7 @@ async def test_full_attention_flow(session: Session):
         interesting=9.0,
         useful=8.0,
         understandable=10.0,
-        reason="The agent demonstrated clear understanding."
+        reason="The agent demonstrated clear understanding.",
     )
 
     session.commit()  # Ensure the state is committed to the DB session

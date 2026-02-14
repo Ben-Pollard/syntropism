@@ -20,11 +20,11 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 from sqlalchemy.orm import Session
 
-from syntropism.infra.database import Base, SessionLocal, engine
 from syntropism.core.genesis import create_genesis_agent
+from syntropism.core.orchestrator import run_system_loop
 from syntropism.domain.market import ResourceType
 from syntropism.domain.models import Agent, Bid, BidStatus, MarketState, ResourceBundle
-from syntropism.core.orchestrator import run_system_loop
+from syntropism.infra.database import Base, SessionLocal, engine
 
 
 def init_db():

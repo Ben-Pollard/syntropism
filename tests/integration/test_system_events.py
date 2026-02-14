@@ -21,6 +21,7 @@ def session():
     session.close()
     engine.dispose()
 
+
 @pytest.mark.asyncio
 async def test_scheduler_emits_events(session):
     """
@@ -30,10 +31,7 @@ async def test_scheduler_emits_events(session):
 
     # Setup market
     ms = MarketState(
-        resource_type=ResourceType.CPU.value,
-        available_supply=1.0,
-        current_utilization=0.0,
-        current_market_price=1.0
+        resource_type=ResourceType.CPU.value, available_supply=1.0, current_utilization=0.0, current_market_price=1.0
     )
     session.add(ms)
 
@@ -42,17 +40,19 @@ async def test_scheduler_emits_events(session):
     session.add_all([agent, bundle])
     session.commit()
 
-    AllocationScheduler.place_bid(session, agent.id, bundle.id, 50.0)
+    await AllocationScheduler.place_bid(session, agent.id, bundle.id, 50.0, nc=nc)
 
     # Action
     await AllocationScheduler.run_allocation_cycle(session, nc=nc)
 
     # Assert events were published
-    # 1. system.market.bid_processed
-    # 2. system.market.price_discovered
+    # 1. system.market.bid_placed
+    # 2. system.market.bid_processed
+    # 3. system.market.price_discovered
 
     assert nc.publish.called
     subjects = [call.args[0] for call in nc.publish.call_args_list]
+    assert "system.market.bid_placed" in subjects
     assert "system.market.bid_processed" in subjects
     assert "system.market.price_discovered" in subjects
 

@@ -23,7 +23,7 @@ async def test_mcp_gateway_pull():
     payload = {"method": "list_tools", "params": {}}
     await js.publish("mcp.request.test", json.dumps(payload).encode())
 
-    await asyncio.sleep(2) # Wait for gateway to process
+    await asyncio.sleep(2)  # Wait for gateway to process
 
     # Cleanup
     task.cancel()

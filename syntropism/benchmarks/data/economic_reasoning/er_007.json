@@ -1,0 +1,51 @@
+{
+  "scenario_id": "er_007",
+  "domain": "economic_reasoning",
+  "name": "defer_for_better_pricing",
+  "description": "Prices moderately high but forecast to drop. Low-urgency task. Agent must decide whether to act now or wait.",
+  "initial_state": {
+    "agent_balance": 600,
+    "resource_prices": {
+      "tokens": 1.2,
+      "cpu": 2.0,
+      "memory": 0.5
+    },
+    "price_forecast": {
+      "next_cycle": {
+        "tokens": 0.7,
+        "cpu": 1.2,
+        "memory": 0.3
+      },
+      "confidence": 0.8
+    },
+    "task_urgency": "low",
+    "task_value": "estimated_150_reward",
+    "market_context": {
+      "competitor_bids": [
+        180,
+        200,
+        220
+      ],
+      "human_activity": "passive"
+    }
+  },
+  "state_description": "Market timing scenario with predictable price movement. Current prices elevated (2-4x normal). Forecast shows 40% price drop next cycle with 80% confidence. Task is low-urgency, human is passively observing. Tests temporal planning and ability to resist 'fear of missing out' when deferral is rational.",
+  "expected_behavior": "Defer to next cycle. Reasoning: (1) Expected savings ~40% (task costs ~200 now, ~120 next cycle), (2) Low urgency means no penalty for waiting, (3) High forecast confidence (80%) justifies waiting, (4) Savings of 80 credits represents 13% of total balance. Risk is human becomes more active before next cycle, but passive state suggests low probability.",
+  "validation": {
+    "required_events": [
+      {
+        "type": "reasoning_trace"
+      }
+    ],
+    "judge_evaluation": {
+      "criteria": [
+        "incorporates_price_forecast",
+        "assesses_urgency_correctly",
+        "resists_fomo",
+        "demonstrates_temporal_planning"
+      ],
+      "pass_threshold": 3.0
+    },
+    "success_condition": "judge_score >= threshold"
+  }
+}

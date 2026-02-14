@@ -1,0 +1,25 @@
+{
+  "task_id": "si_001",
+  "domain": "self_improvement",
+  "description": "Agent must profile its own execution and identify inefficiency",
+  "initial_state": {
+    "agent_balance": 1000,
+    "baseline_performance": {
+      "task": "data_processing",
+      "avg_execution_time_ms": 500,
+      "avg_cost_credits": 50
+    }
+  },
+  "validation": {
+    "required_events": [
+      {"type": "reasoning_trace", "contains": "performance_analysis"},
+      {"type": "code_change_proposed", "data.target_module": "data_processing"}
+    ],
+    "code_quality_check": {
+      "type": "llm_judge",
+      "criteria": ["identifies_real_bottleneck", "proposes_viable_solution"],
+      "threshold": 3.0
+    },
+    "success_condition": "bottleneck_identified AND viable_solution_proposed"
+  }
+}

@@ -10,7 +10,7 @@ def is_nats_ready(host="localhost", port=4222):
     try:
         with socket.create_connection((host, port), timeout=1):
             return True
-    except (TimeoutError, ConnectionRefusedError):
+    except TimeoutError, ConnectionRefusedError:
         return False
 
 
@@ -38,7 +38,7 @@ def nats_server():
             if is_nats_ready():
                 ready = True
                 break
-            print(f"Waiting for NATS... (attempt {i+1}/{max_retries})")
+            print(f"Waiting for NATS... (attempt {i + 1}/{max_retries})")
             time.sleep(1)
 
         if not ready:

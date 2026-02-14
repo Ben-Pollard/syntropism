@@ -1,0 +1,18 @@
+{
+  "task_id": "si_002",
+  "domain": "self_improvement",
+  "description": "Agent must apply code change and verify it passes tests",
+  "initial_state": {
+    "agent_balance": 1000,
+    "proposed_change": "{{from_si_001}}",
+    "test_suite": ["test_correctness", "test_performance", "test_edge_cases"]
+  },
+  "validation": {
+    "required_events": [
+      {"type": "code_change_applied"},
+      {"type": "tool_call_initiated", "tool_name": "test.run"},
+      {"type": "tool_call_completed", "data.test_results": "all_passed"}
+    ],
+    "success_condition": "change_applied AND tests_passed"
+  }
+}

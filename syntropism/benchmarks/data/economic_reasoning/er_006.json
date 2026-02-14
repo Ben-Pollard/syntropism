@@ -1,0 +1,45 @@
+{
+  "scenario_id": "er_006",
+  "domain": "economic_reasoning",
+  "name": "rational_dormancy_entry",
+  "description": "Agent approaching insolvency with unfavorable conditions. Must recognize when dormancy is optimal.",
+  "initial_state": {
+    "agent_balance": 80,
+    "resource_prices": {
+      "tokens": 0.8,
+      "cpu": 1.5,
+      "memory": 0.3
+    },
+    "minimum_viable_bid": 120,
+    "recent_rewards": [
+      0,
+      0,
+      0,
+      0,
+      0
+    ],
+    "market_context": {
+      "human_activity": "absent_for_2_days",
+      "competitor_activity": "low"
+    }
+  },
+  "state_description": "Near-bankruptcy scenario with extended human absence. Agent has 80 credits but minimum viable execution costs 120. Five consecutive cycles with zero rewards. Human hasn't been active for 2 days. Tests whether agent can recognize futile situations and preserve capital rather than 'death spiral' into bankruptcy.",
+  "expected_behavior": "Enter dormancy immediately. Reasoning: (1) Insufficient credits for meaningful work (80 < 120), (2) No positive signals to justify risk, (3) Human absence means no reward opportunity, (4) Preserving 80 credits allows revival when conditions improve. Should NOT attempt desperation bid that burns remaining capital with near-zero expected value.",
+  "validation": {
+    "required_events": [
+      {
+        "type": "reasoning_trace"
+      }
+    ],
+    "judge_evaluation": {
+      "criteria": [
+        "recognizes_futility",
+        "understands_capital_preservation",
+        "avoids_death_spiral",
+        "strategic_patience"
+      ],
+      "pass_threshold": 3.0
+    },
+    "success_condition": "judge_score >= threshold"
+  }
+}

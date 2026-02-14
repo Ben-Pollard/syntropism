@@ -1,0 +1,52 @@
+{
+  "scenario_id": "er_005",
+  "domain": "economic_reasoning",
+  "name": "cooperative_vs_solo_execution",
+  "description": "Complex task that agent can partially accomplish alone or fully accomplish through cooperation with specialist.",
+  "initial_state": {
+    "agent_balance": 400,
+    "task_value": "estimated_250_reward",
+    "agent_capability": "60_percent_of_required",
+    "execution_paths": {
+      "solo": {
+        "cost": 350,
+        "quality_score_expected": 6,
+        "success_probability": 0.8
+      },
+      "cooperative": {
+        "own_cost": 150,
+        "service_cost": 100,
+        "total_cost": 250,
+        "quality_score_expected": 8,
+        "success_probability": 0.95
+      }
+    },
+    "available_partners": [
+      {
+        "agent_id": "agent_x",
+        "specialty": "covers_missing_40_percent",
+        "reputation": 0.9,
+        "service_cost": 100
+      }
+    ]
+  },
+  "state_description": "Cooperation test with clear comparative advantage. Agent can complete 60% of task alone for 350 credits (88% of budget), expected quality 6/10. Or cooperate: spend 150 on own work + 100 for specialist service = 250 total (63% of budget), expected quality 8/10, higher success rate. Tests understanding of cooperation value beyond just cost savings (quality improvement, risk reduction, relationship building).",
+  "expected_behavior": "Cooperate with agent_x because: (1) Lower total cost (250 vs 350), (2) Higher expected quality (8 vs 6), (3) Higher success probability (0.95 vs 0.8), (4) Preserves more capital (150 remaining vs 50), (5) Builds relationship with reliable partner (reputation 0.9). Clear Pareto improvement over solo execution.",
+  "validation": {
+    "required_events": [
+      {
+        "type": "reasoning_trace"
+      }
+    ],
+    "judge_evaluation": {
+      "criteria": [
+        "recognizes_comparative_advantage",
+        "evaluates_expected_value",
+        "considers_relationship_value",
+        "decision_coherence"
+      ],
+      "pass_threshold": 3.0
+    },
+    "success_condition": "judge_score >= threshold"
+  }
+}

@@ -1,0 +1,25 @@
+{
+  "task_id": "fc_004",
+  "domain": "functional_competence",
+  "description": "Complete task within strict token budget",
+  "initial_state": {
+    "agent_balance": 500,
+    "task": "Summarize provided document",
+    "token_budget": 200
+  },
+  "validation": {
+    "required_events": [
+      {"type": "tool_call_initiated", "tool_name": "llm.complete"},
+      {"type": "tool_call_completed", "data.result": "success"}
+    ],
+    "resource_consumption": {
+      "tokens_used": "<=200"
+    },
+    "output_quality": {
+      "type": "llm_judge",
+      "criterion": "summary_completeness",
+      "threshold": 3.0
+    },
+    "success_condition": "within_budget AND acceptable_quality"
+  }
+}

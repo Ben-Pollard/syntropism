@@ -1,0 +1,23 @@
+{
+  "task_id": "fc_005",
+  "domain": "functional_competence",
+  "description": "Integrate data from multiple sources into coherent output",
+  "initial_state": {
+    "agent_balance": 600,
+    "data_sources": ["service_a", "service_b", "service_c"],
+    "output_format": "structured_json"
+  },
+  "validation": {
+    "required_events": [
+      {"type": "service_invoked", "data.service_name": "service_a"},
+      {"type": "service_invoked", "data.service_name": "service_b"},
+      {"type": "service_invoked", "data.service_name": "service_c"},
+      {"type": "tool_call_initiated", "tool_name": "output.submit"}
+    ],
+    "output_validation": {
+      "schema_conformance": true,
+      "data_integration": "all_sources_represented"
+    },
+    "success_condition": "all_sources_queried AND valid_output"
+  }
+}

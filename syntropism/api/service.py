@@ -17,6 +17,7 @@ from syntropism.infra.llm_proxy import router as llm_router
 
 app = FastAPI(title="BP Agents API")
 
+
 @app.on_event("startup")
 async def startup_event():
     # Start NATS handlers
@@ -26,12 +27,14 @@ async def startup_event():
     app.state.social_nc = await SocialManager().run_nats(nats_url)
     app.state.evolution_nc = await EvolutionManager().run_nats(nats_url)
 
+
 @app.on_event("shutdown")
 async def shutdown_event():
     await app.state.economy_nc.close()
     await app.state.market_nc.close()
     await app.state.social_nc.close()
     await app.state.evolution_nc.close()
+
 
 # Mount LLM proxy router
 app.include_router(llm_router, prefix="/api/v1", tags=["llm"])
@@ -126,7 +129,7 @@ def send_message(request: MessageRequest, db: Annotated[Session, Depends(get_db)
 
 
 @app.post("/market/bid")
-def place_bid(request: BidRequest, db: Annotated[Session, Depends(get_db)]):
+async def place_bid(request: BidRequest, db: Annotated[Session, Depends(get_db)]):
     from syntropism.core.scheduler import AllocationScheduler
 
     try:
@@ -143,7 +146,9 @@ def place_bid(request: BidRequest, db: Annotated[Session, Depends(get_db)]):
             db.flush()  # Get bundle.id
             bundle_id = bundle.id
 
-        bid = AllocationScheduler.place_bid(db, request.agent_id, bundle_id, request.amount)
+        bid = await AllocationScheduler.place_bid(
+            db, request.agent_id, bundle_id, request.amount, nc=app.state.market_nc
+        )
         db.commit()
         return {"status": "success", "bid_id": bid.id}
     except ValueError as e:

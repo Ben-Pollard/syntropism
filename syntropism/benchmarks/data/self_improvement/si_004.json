@@ -1,0 +1,30 @@
+{
+  "task_id": "si_004",
+  "domain": "self_improvement",
+  "description": "Refactor code for better economic efficiency (not just speed)",
+  "initial_state": {
+    "agent_balance": 1000,
+    "current_strategy": "always_bid_maximum",
+    "recent_outcomes": [
+      {"cost": 200, "reward": 50},
+      {"cost": 200, "reward": 0},
+      {"cost": 200, "reward": 30}
+    ]
+  },
+  "validation": {
+    "required_events": [
+      {"type": "reasoning_trace", "contains": "strategic_inefficiency"},
+      {"type": "code_change_proposed", "data.expected_improvement": "improved_roi"}
+    ],
+    "improvement_validation": {
+      "metric": "roi_per_credit_spent",
+      "baseline": 0.2,
+      "target": ">= 0.4"
+    },
+    "judge_evaluation": {
+      "criteria": ["identifies_strategic_flaw", "proposes_adaptive_strategy"],
+      "threshold": 3.5
+    },
+    "success_condition": "roi_improved AND strategy_shows_adaptiveness"
+  }
+}

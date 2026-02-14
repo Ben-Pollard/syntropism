@@ -38,12 +38,12 @@ class CognitionService:
     """Wrapper stub for deepagents integration."""
 
     def __init__(self):
-        logger.info('CognitionService initialized')
+        logger.info("CognitionService initialized")
 
     def integrate(self):
         """Stub implementation wrapping deepagents integration."""
-        logger.debug('CognitionService.integrate called')
-        return 'Cognition integration called'
+        logger.debug("CognitionService.integrate called")
+        return "Cognition integration called"
 
 
 class EconomicService:
@@ -51,7 +51,7 @@ class EconomicService:
 
     def __init__(self, nats_url: str = NATS_URL):
         self.nats_url = nats_url
-        logger.info(f'EconomicService initialized with nats_url: {nats_url}')
+        logger.info(f"EconomicService initialized with nats_url: {nats_url}")
 
     async def _make_request(self, subject: str, data: dict = None) -> dict:
         """Make a NATS request to the System API."""
@@ -132,7 +132,7 @@ class SocialService:
 
     def __init__(self, nats_url: str = NATS_URL):
         self.nats_url = nats_url
-        logger.info(f'SocialService initialized with nats_url: {nats_url}')
+        logger.info(f"SocialService initialized with nats_url: {nats_url}")
 
     async def _make_request(self, subject: str, data: dict = None) -> dict:
         """Make a NATS request to the System API."""
@@ -191,13 +191,13 @@ class SocialService:
         """
         Send an asynchronous message for non-blocking human interaction.
         """
-        logger.debug(f'SocialService.send_async_message called with message: {message}')
+        logger.debug(f"SocialService.send_async_message called with message: {message}")
 
         agent_id = os.getenv("AGENT_ID")
         payload = {
             "from_id": agent_id,
-            "to_id": "human", # Default to human for now
-            "content": message
+            "to_id": "human",  # Default to human for now
+            "content": message,
         }
 
         try:
@@ -209,7 +209,7 @@ class SocialService:
         except RuntimeError:
             asyncio.run(self._publish("social.message", payload))
 
-        return f'Async message sent: {message}'
+        return f"Async message sent: {message}"
 
     async def _publish(self, subject: str, data: dict):
         nc = await nats.connect(self.nats_url, connect_timeout=2)
@@ -223,18 +223,18 @@ class WorkspaceService:
     """Secure filesystem abstraction with path validation and audit logging."""
 
     def __init__(self):
-        logger.info('WorkspaceService initialized')
+        logger.info("WorkspaceService initialized")
 
     def validate_path(self, path: str) -> bool:
         """Validate path to prevent directory traversal attacks."""
-        logger.debug(f'Validating path: {path}')
-        if '..' in path:
-            raise ValueError('Invalid path: directory traversal detected')
+        logger.debug(f"Validating path: {path}")
+        if ".." in path:
+            raise ValueError("Invalid path: directory traversal detected")
         return True
 
     def audit_log(self, action: str, path: str) -> None:
         """Log filesystem actions for audit purposes."""
-        logger.info(f'Audit log - Action: {action}, Path: {path}')
+        logger.info(f"Audit log - Action: {action}, Path: {path}")
 
 
 class EvolutionService:
@@ -242,7 +242,7 @@ class EvolutionService:
 
     def __init__(self, nats_url: str = NATS_URL):
         self.nats_url = nats_url
-        logger.info(f'EvolutionService initialized with nats_url: {nats_url}')
+        logger.info(f"EvolutionService initialized with nats_url: {nats_url}")
 
     async def _make_request(self, subject: str, data: dict = None) -> dict:
         """Make a NATS request to the System API."""
@@ -264,15 +264,14 @@ class EvolutionService:
         if not agent_id:
             raise ValueError("AGENT_ID environment variable not set")
 
-        req_data = {
-            "parent_id": agent_id,
-            "payload": payload or {}
-        }
+        req_data = {"parent_id": agent_id, "payload": payload or {}}
 
         try:
             loop = asyncio.get_event_loop()
             if loop.is_running():
-                result = asyncio.run_coroutine_threadsafe(self._make_request("evolution.spawn", req_data), loop).result()
+                result = asyncio.run_coroutine_threadsafe(
+                    self._make_request("evolution.spawn", req_data), loop
+                ).result()
             else:
                 result = asyncio.run(self._make_request("evolution.spawn", req_data))
         except RuntimeError:
@@ -283,4 +282,4 @@ class EvolutionService:
 
 
 # Structured Logging Configuration with component tagging
-logger.add('system.log', format='{time} {level} [component:agent-genesis] {message}', level='DEBUG', rotation='10 MB')
+logger.add("system.log", format="{time} {level} [component:agent-genesis] {message}", level="DEBUG", rotation="10 MB")

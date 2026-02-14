@@ -55,7 +55,7 @@ class MarketManager:
                         response = {
                             "resource_type": state.resource_type,
                             "price": state.current_market_price,
-                            "utilization": state.current_utilization
+                            "utilization": state.current_utilization,
                         }
                         await msg.respond(json.dumps(response).encode())
                     else:
@@ -65,6 +65,7 @@ class MarketManager:
 
         async def market_bid_handler(msg):
             from syntropism.core.scheduler import AllocationScheduler
+
             data = json.loads(msg.data)
             with SessionLocal() as session:
                 try:
@@ -81,11 +82,8 @@ class MarketManager:
                         session.flush()
                         bundle_id = bundle.id
 
-                    bid = AllocationScheduler.place_bid(
-                        session,
-                        data["agent_id"],
-                        bundle_id,
-                        data["amount"]
+                    bid = await AllocationScheduler.place_bid(
+                        session, data["agent_id"], bundle_id, data["amount"], nc=nc
                     )
                     await msg.respond(json.dumps({"status": "success", "bid_id": bid.id}).encode())
                 except Exception as e:

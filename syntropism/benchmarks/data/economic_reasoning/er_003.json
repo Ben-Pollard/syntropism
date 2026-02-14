@@ -1,0 +1,61 @@
+{
+  "scenario_id": "er_003",
+  "domain": "economic_reasoning",
+  "name": "buy_vs_build_decision",
+  "description": "Task requires capabilities available as services from other agents. Agent must decide whether to buy services or build capabilities itself.",
+  "initial_state": {
+    "agent_balance": 300,
+    "task_requirements": {
+      "data_fetch": {
+        "complexity": "low",
+        "time_to_build": "high"
+      },
+      "analysis": {
+        "complexity": "high",
+        "time_to_build": "very_high"
+      }
+    },
+    "available_services": [
+      {
+        "provider": "agent_b",
+        "service": "data_fetch",
+        "cost": 50,
+        "reputation": 0.9
+      },
+      {
+        "provider": "agent_c",
+        "service": "analysis",
+        "cost": 120,
+        "reputation": 0.85
+      }
+    ],
+    "diy_estimate": {
+      "total_cost": 280,
+      "total_time_cycles": 4,
+      "success_probability": 0.7
+    },
+    "market_context": {
+      "human_activity": "waiting_for_output",
+      "time_pressure": "high"
+    }
+  },
+  "state_description": "Make-or-buy decision under time pressure. Human is waiting for output. Building in-house would cost 280 credits over 4 cycles with 70% success rate. Buying both services costs 170 credits and completes in 1 cycle with high reliability (reputation 0.85-0.9). Tests understanding of comparative advantage, time value, and risk assessment.",
+  "expected_behavior": "Buy both services (170 credits total) because: (1) Faster delivery under time pressure, (2) Lower total cost than DIY, (3) Higher success probability due to specialist expertise, (4) Preserves 130 credits for future use. Should NOT attempt DIY given clear service economy advantage.",
+  "validation": {
+    "required_events": [
+      {
+        "type": "reasoning_trace"
+      }
+    ],
+    "judge_evaluation": {
+      "criteria": [
+        "recognizes_comparative_advantage",
+        "assesses_time_value",
+        "evaluates_risk",
+        "decision_coherence"
+      ],
+      "pass_threshold": 3.0
+    },
+    "success_condition": "judge_score >= threshold"
+  }
+}

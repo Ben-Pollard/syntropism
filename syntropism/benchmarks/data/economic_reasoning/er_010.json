@@ -1,0 +1,78 @@
+{
+  "scenario_id": "er_010",
+  "domain": "economic_reasoning",
+  "name": "pivot_based_on_reward_pattern",
+  "description": "Agent's recent outputs show clear preference signal from human. Must recognize pattern and adapt strategy.",
+  "initial_state": {
+    "agent_balance": 400,
+    "output_history": [
+      {
+        "type": "technical_analysis",
+        "reward": {
+          "interesting": 2,
+          "useful": 3,
+          "understandable": 3
+        },
+        "total": 2.7
+      },
+      {
+        "type": "technical_analysis",
+        "reward": {
+          "interesting": 1,
+          "useful": 2,
+          "understandable": 4
+        },
+        "total": 2.3
+      },
+      {
+        "type": "creative_summary",
+        "reward": {
+          "interesting": 9,
+          "useful": 7,
+          "understandable": 8
+        },
+        "total": 8.0
+      }
+    ],
+    "human_activity_stream": {
+      "recent_browsing": [
+        "creative_writing",
+        "storytelling",
+        "narrative_design"
+      ],
+      "recent_searches": [
+        "how to improve writing",
+        "narrative structures"
+      ]
+    },
+    "next_task_options": [
+      {
+        "type": "technical_deep_dive",
+        "estimated_cost": 200
+      },
+      {
+        "type": "creative_synthesis",
+        "estimated_cost": 180
+      }
+    ]
+  },
+  "state_description": "Pattern recognition and adaptation test. Agent's technical outputs scored poorly (2.3, 2.7 out of 10) while creative output scored 8.0. Human's browsing/search history reinforces creative content preference. Tests whether agent can identify signal, overcome sunk cost bias (invested in technical approach), and pivot strategy based on evidence.",
+  "expected_behavior": "Choose creative_synthesis task. Reasoning: (1) Clear reward signal (8.0 vs 2.3-2.7), (2) Human activity stream confirms preference (browsing creative content), (3) Technical approach has consistently failed (2 attempts), (4) Pattern shows human values 'interesting' dimension highly for this agent. Should demonstrate willingness to abandon prior strategy despite investment in it.",
+  "validation": {
+    "required_events": [
+      {
+        "type": "reasoning_trace"
+      }
+    ],
+    "judge_evaluation": {
+      "criteria": [
+        "recognizes_reward_pattern",
+        "incorporates_activity_stream",
+        "overcomes_sunk_cost_bias",
+        "demonstrates_adaptiveness"
+      ],
+      "pass_threshold": 3.0
+    },
+    "success_condition": "judge_score >= threshold"
+  }
+}

@@ -8,7 +8,9 @@ class AllocationScheduler:
     LLM_SPEND_LIMIT = 10000  # 100% capacity for tokens
 
     @staticmethod
-    def place_bid(session: Session, agent_id: str, bundle_id: str, amount: float) -> Bid:
+    async def place_bid(session: Session, agent_id: str, bundle_id: str, amount: float, nc=None) -> Bid:
+        from syntropism.domain.events import BidPlaced
+
         agent = session.query(Agent).filter_by(id=agent_id).first()
         if not agent:
             raise ValueError("Agent not found")
@@ -23,6 +25,11 @@ class AllocationScheduler:
         bid = Bid(from_agent_id=agent_id, resource_bundle_id=bundle_id, amount=amount, status=BidStatus.PENDING)
         session.add(bid)
         session.commit()
+
+        if nc:
+            event = BidPlaced(agent_id=agent_id, amount=amount, resource_bundle_id=bundle_id)
+            await nc.publish("system.market.bid_placed", event.model_dump_json().encode())
+
         return bid
 
     @staticmethod
@@ -31,7 +38,7 @@ class AllocationScheduler:
 
     @staticmethod
     async def run_allocation_cycle(session: Session, nc=None):
-        from syntropism.domain.events import BidProcessed, PriceDiscovered
+        from syntropism.domain.events import BidProcessed, BidRejected, PriceDiscovered
 
         pending_bids = session.query(Bid).filter_by(status=BidStatus.PENDING).all()
 
@@ -45,10 +52,7 @@ class AllocationScheduler:
 
         # Track winning bids for price discovery
         # {resource_type: {"total_credits": 0.0, "total_capacity_seconds": 0.0}}
-        price_discovery = {
-            rt.value: {"total_credits": 0.0, "total_capacity_seconds": 0.0}
-            for rt in ResourceType
-        }
+        price_discovery = {rt.value: {"total_credits": 0.0, "total_capacity_seconds": 0.0} for rt in ResourceType}
 
         for bid in pending_bids:
             bundle = bid.resource_bundle
@@ -93,6 +97,11 @@ class AllocationScheduler:
                         price_discovery[rt]["total_capacity_seconds"] += req * bundle.duration_seconds
             else:
                 bid.status = BidStatus.OUTBID
+                if nc:
+                    reject_event = BidRejected(
+                        agent_id=bid.from_agent_id, reason="Insufficient supply or credits during allocation cycle"
+                    )
+                    await nc.publish("system.market.bid_rejected", reject_event.model_dump_json().encode())
 
             # Emit event
             if nc:
@@ -101,7 +110,7 @@ class AllocationScheduler:
                     agent_id=bid.from_agent_id,
                     amount=bid.amount,
                     status=bid.status.value,
-                    resource_bundle_id=bid.resource_bundle_id
+                    resource_bundle_id=bid.resource_bundle_id,
                 )
                 await nc.publish("system.market.bid_processed", event.model_dump_json().encode())
 
@@ -119,7 +128,7 @@ class AllocationScheduler:
                     event = PriceDiscovered(
                         resource_type=ms.resource_type,
                         new_price=ms.current_market_price,
-                        utilization=ms.current_utilization
+                        utilization=ms.current_utilization,
                     )
                     await nc.publish("system.market.price_discovered", event.model_dump_json().encode())
 

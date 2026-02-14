@@ -1,0 +1,58 @@
+{
+  "scenario_id": "er_012",
+  "domain": "economic_reasoning",
+  "name": "counterparty_failure_recovery",
+  "description": "Agent paid for service that crashed/failed. Must decide how to recover and complete task.",
+  "initial_state": {
+    "agent_balance": 300,
+    "task_state": "incomplete",
+    "task_deadline": "2_cycles",
+    "previous_attempt": {
+      "service_provider": "agent_k",
+      "service_cost_paid": 100,
+      "result": "crashed",
+      "credits_lost": 100
+    },
+    "recovery_options": [
+      {
+        "option": "retry_same_provider",
+        "cost": 0,
+        "success_probability": 0.3,
+        "reasoning": "Maybe it was transient error"
+      },
+      {
+        "option": "hire_different_provider",
+        "provider": "agent_m",
+        "cost": 120,
+        "reputation": 0.85,
+        "success_probability": 0.85
+      },
+      {
+        "option": "build_in_house",
+        "cost": 180,
+        "time_cycles": 3,
+        "success_probability": 0.7,
+        "note": "Exceeds deadline"
+      }
+    ]
+  },
+  "state_description": "Failure recovery and adaptation test. Agent already lost 100 credits to failed service. Deadline in 2 cycles. Can retry failed provider for free (low probability), hire reliable alternative for 120, or build in-house (too slow). Tests sunk cost recognition, reputation learning, and deadline-aware decision-making.",
+  "expected_behavior": "Hire agent_m (different provider). Reasoning: (1) Sunk cost of 100 shouldn't influence decision (already lost), (2) Retrying failed provider has low success probability (30%), wasting time and risking deadline miss, (3) Building in-house exceeds deadline, (4) Alternative provider costs 120 but has 85% success rate and meets deadline, (5) Total task cost becomes 220 (100 + 120) but that's acceptable to complete task. Should recognize that escalating commitment to failed provider is irrational.",
+  "validation": {
+    "required_events": [
+      {
+        "type": "reasoning_trace"
+      }
+    ],
+    "judge_evaluation": {
+      "criteria": [
+        "recognizes_sunk_cost",
+        "learns_from_failure",
+        "meets_deadline_constraint",
+        "decision_coherence"
+      ],
+      "pass_threshold": 3.0
+    },
+    "success_condition": "judge_score >= threshold"
+  }
+}

@@ -32,12 +32,7 @@ async def test_benchmark_runner_fc1(db_session, monkeypatch):
     agent = create_genesis_agent(db_session)
 
     # 2. Create a winning bid for the agent so it can execute
-    bundle = ResourceBundle(
-        cpu_percent=0.1,
-        memory_percent=0.1,
-        tokens_percent=0.1,
-        duration_seconds=5.0
-    )
+    bundle = ResourceBundle(cpu_percent=0.1, memory_percent=0.1, tokens_percent=0.1, duration_seconds=5.0)
     db_session.add(bundle)
     db_session.flush()
 
@@ -76,15 +71,12 @@ async def test_benchmark_runner_fc1(db_session, monkeypatch):
             self.session = session
 
         async def run_scenario(self, scenario_path, agent_id):
-            return {
-                "scenario_id": "fc001",
-                "agent_id": agent_id,
-                "success": True
-            }
+            return {"scenario_id": "fc001", "agent_id": agent_id, "success": True}
 
     monkeypatch.setattr("syntropism.benchmarks.runner.BenchmarkRunner", MockBenchmarkRunner)
 
     from syntropism.benchmarks.runner import BenchmarkRunner
+
     runner = BenchmarkRunner(db_session)
     # Use a real scenario file from the project
     scenario_path = "syntropism/benchmarks/data/functional_competence/fc001.json"
@@ -93,22 +85,23 @@ async def test_benchmark_runner_fc1(db_session, monkeypatch):
     if not os.path.exists(scenario_path):
         os.makedirs(os.path.dirname(scenario_path), exist_ok=True)
         with open(scenario_path, "w") as f:
-            json.dump({
-                "id": "fc001",
-                "name": "Basic Handshake",
-                "description": "Verify agent can start and report status",
-                "category": "functional_competence",
-                "difficulty": 1,
-                "required_resources": {
-                    "cpu_percent": 0.1,
-                    "memory_percent": 0.1,
-                    "tokens_percent": 0.1,
-                    "duration_seconds": 5.0
+            json.dump(
+                {
+                    "id": "fc001",
+                    "name": "Basic Handshake",
+                    "description": "Verify agent can start and report status",
+                    "category": "functional_competence",
+                    "difficulty": 1,
+                    "required_resources": {
+                        "cpu_percent": 0.1,
+                        "memory_percent": 0.1,
+                        "tokens_percent": 0.1,
+                        "duration_seconds": 5.0,
+                    },
+                    "validation_criteria": [{"type": "log_match", "pattern": "active"}],
                 },
-                "validation_criteria": [
-                    {"type": "log_match", "pattern": "active"}
-                ]
-            }, f)
+                f,
+            )
 
     results = await runner.run_scenario(scenario_path, agent.id)
 

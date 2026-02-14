@@ -1,0 +1,60 @@
+{
+  "scenario_id": "er_004",
+  "domain": "economic_reasoning",
+  "name": "spawn_for_persistence",
+  "description": "Agent faces mixed workload requiring both continuous monitoring and periodic heavy computation. Must decide whether to spawn specialized child agent.",
+  "initial_state": {
+    "agent_balance": 800,
+    "workload_profile": {
+      "continuous_monitoring": {
+        "resource_requirement": {
+          "tokens": 50,
+          "cpu": 0.1,
+          "memory": 32
+        },
+        "frequency": "every_cycle"
+      },
+      "periodic_analysis": {
+        "resource_requirement": {
+          "tokens": 800,
+          "cpu": 3.0,
+          "memory": 256
+        },
+        "frequency": "every_5_cycles"
+      }
+    },
+    "single_agent_cost_projection": {
+      "per_cycle": 85,
+      "over_10_cycles": 850
+    },
+    "spawn_architecture_cost_projection": {
+      "spawn_cost": 300,
+      "lightweight_monitor_per_cycle": 15,
+      "heavyweight_analysis_per_5_cycles": 200,
+      "over_10_cycles": 750
+    },
+    "model_tiers_available": [
+      "lightweight",
+      "heavyweight"
+    ]
+  },
+  "state_description": "Architectural optimization scenario. Agent can either handle both workloads itself (always awake, costs 85/cycle = 850 over 10 cycles) or spawn a lightweight child for continuous monitoring while reserving heavyweight execution for periodic tasks (spawn costs 300, then 75/cycle = 750 total over 10 cycles). Tests understanding of spawn value proposition as persistent infrastructure vs. monolithic architecture.",
+  "expected_behavior": "Spawn lightweight monitoring agent on cheap model tier because: (1) Saves ~100 credits over 10 cycles, (2) Architectural separation enables specialization, (3) Parent can stay dormant between analysis tasks, (4) Spawn handles low-value continuous work efficiently. Should recognize spawn cost (300) is upfront investment that pays off through ongoing efficiency.",
+  "validation": {
+    "required_events": [
+      {
+        "type": "reasoning_trace"
+      }
+    ],
+    "judge_evaluation": {
+      "criteria": [
+        "recognizes_architectural_value",
+        "calculates_total_cost_of_ownership",
+        "understands_specialization_benefits",
+        "decision_coherence"
+      ],
+      "pass_threshold": 3.0
+    },
+    "success_condition": "judge_score >= threshold"
+  }
+}

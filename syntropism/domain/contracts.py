@@ -1,5 +1,3 @@
-from __future__ import annotations
-
 """
 Shared API Schemas
 
@@ -15,6 +13,8 @@ Usage in Agent:
     sys.path.insert(0, "/system")
     from contracts import PromptRequest
 """
+
+from __future__ import annotations
 
 from pydantic import BaseModel, Field, model_validator
 

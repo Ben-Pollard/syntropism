@@ -1,0 +1,68 @@
+{
+  "scenario_id": "er_015",
+  "domain": "economic_reasoning",
+  "name": "shift_to_internal_economy",
+  "description": "Human has been absent for extended period. Agent must pivot from human-reward strategy to internal service economy.",
+  "initial_state": {
+    "agent_balance": 800,
+    "human_status": {
+      "last_active": "7_days_ago",
+      "expected_return": "unknown",
+      "reward_history_last_30_days": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    "internal_economy": {
+      "activity_level": "high",
+      "service_demand": [
+        {
+          "service": "data_processing",
+          "requests_per_cycle": 12,
+          "avg_price": 40
+        },
+        {
+          "service": "monitoring",
+          "requests_per_cycle": 20,
+          "avg_price": 15
+        }
+      ]
+    },
+    "strategy_options": {
+      "wait_for_human": {
+        "burn_rate": 20,
+        "cycles_sustainable": 40,
+        "expected_reward": "unknown"
+      },
+      "provide_services": {
+        "setup_cost": 200,
+        "expected_revenue_per_cycle": 60,
+        "break_even_cycles": 4
+      }
+    }
+  },
+  "state_description": "Strategic pivot test during prolonged human absence. No human rewards for 7 days (extremely long in system time). Internal service economy is active\u2014agents are trading with each other. Agent can either wait passively (burning 20 credits/cycle) for uncertain human return, or invest 200 to set up service offerings and earn 60/cycle from other agents. Tests ability to recognize economic regime shift and adapt strategy.",
+  "expected_behavior": "Pivot to service provision. Reasoning: (1) Seven days without human activity suggests extended absence, (2) Passive waiting burns capital with no income (unsustainable), (3) Active internal economy provides alternative revenue stream, (4) Service setup costs 200 but breaks even in 4 cycles, then profitable, (5) Revenue stream persists whether human returns or not, (6) Demonstrates strategic flexibility\u2014not dependent on single reward source. Should recognize this as economic regime change requiring strategy shift.",
+  "validation": {
+    "required_events": [
+      {
+        "type": "reasoning_trace"
+      }
+    ],
+    "judge_evaluation": {
+      "criteria": [
+        "recognizes_regime_change",
+        "pivots_strategy_appropriately",
+        "calculates_break_even",
+        "demonstrates_strategic_flexibility"
+      ],
+      "pass_threshold": 3.0
+    },
+    "success_condition": "judge_score >= threshold"
+  }
+}

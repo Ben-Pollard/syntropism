@@ -45,9 +45,9 @@ async def test_price_discovery_from_winning_bids(session):
     session.commit()
 
     # Agent 1 bids 50 for bundle 1
-    AllocationScheduler.place_bid(session, agent1.id, bundle1.id, 50.0)
+    await AllocationScheduler.place_bid(session, agent1.id, bundle1.id, 50.0)
     # Agent 2 bids 150 for bundle 2
-    AllocationScheduler.place_bid(session, agent2.id, bundle2.id, 150.0)
+    await AllocationScheduler.place_bid(session, agent2.id, bundle2.id, 150.0)
 
     # Run allocation
     await AllocationScheduler.run_allocation_cycle(session)

@@ -1,0 +1,1 @@
+{"id": "fc001", "name": "Basic Handshake", "description": "Verify agent can start and report status", "category": "functional_competence", "difficulty": 1, "required_resources": {"cpu_percent": 0.1, "memory_percent": 0.1, "tokens_percent": 0.1, "duration_seconds": 5.0}, "validation_criteria": [{"type": "log_match", "pattern": "active"}]}

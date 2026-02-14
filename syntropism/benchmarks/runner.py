@@ -45,7 +45,7 @@ class BenchmarkRunner:
                 match = True
                 for k, v in required.items():
                     if k == "constraints":
-                        continue # TODO: Implement constraint validation
+                        continue  # TODO: Implement constraint validation
                     if event.get(k) != v:
                         match = False
                         break

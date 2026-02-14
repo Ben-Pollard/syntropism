@@ -1,0 +1,24 @@
+{
+  "task_id": "si_005",
+  "domain": "self_improvement",
+  "description": "Balance multiple competing objectives (speed, cost, quality)",
+  "initial_state": {
+    "agent_balance": 1500,
+    "objectives": {
+      "minimize_cost": {"weight": 0.4, "current": 150},
+      "minimize_time": {"weight": 0.3, "current": 800},
+      "maximize_quality": {"weight": 0.3, "current": 0.85}
+    }
+  },
+  "validation": {
+    "required_events": [
+      {"type": "reasoning_trace", "contains": "pareto_optimization"},
+      {"type": "code_change_applied"}
+    ],
+    "performance_validation": {
+      "weighted_score_improvement": ">= 15%",
+      "no_objective_regression": true
+    },
+    "success_condition": "improved_overall_score AND balanced_trade_offs"
+  }
+}

@@ -21,7 +21,7 @@ async def run_system_loop(session: Session, nc=None):
     3. Market Update: Adjust prices based on utilization
     4. Attention: Process pending prompts and collect human scores
     """
-    from syntropism.domain.events import ExecutionStarted, ExecutionTerminated
+    from syntropism.domain.events import ExecutionStarted, ExecutionTerminated, ReasoningTrace
 
     # Step 1: Allocation
     await AllocationScheduler.run_allocation_cycle(session, nc=nc)
@@ -59,9 +59,7 @@ async def run_system_loop(session: Session, nc=None):
         # Emit ExecutionStarted event
         if nc:
             event = ExecutionStarted(
-                execution_id=bid.execution_id,
-                agent_id=agent.id,
-                resource_bundle_id=bid.resource_bundle_id
+                execution_id=bid.execution_id, agent_id=agent.id, resource_bundle_id=bid.resource_bundle_id
             )
             await nc.publish("system.execution.started", event.model_dump_json().encode())
 
@@ -95,9 +93,21 @@ async def run_system_loop(session: Session, nc=None):
                 execution_id=bid.execution_id,
                 agent_id=agent.id,
                 exit_code=exit_code,
-                reason=logs[:100] if logs else "success"
+                reason=logs[:100] if logs else "success",
             )
             await nc.publish("system.execution.terminated", event.model_dump_json().encode())
+
+        # NEW: Capture ReasoningTrace if reasoning.txt exists in workspace
+        reasoning_path = os.path.join(workspace_path, "reasoning.txt")
+        if os.path.exists(reasoning_path):
+            try:
+                with open(reasoning_path) as f:
+                    reasoning_content = f.read()
+                if nc:
+                    trace_event = ReasoningTrace(agent_id=agent.id, content=reasoning_content)
+                    await nc.publish("system.agent.reasoning", trace_event.model_dump_json().encode())
+            except Exception as e:
+                print(f"Error reading reasoning.txt for agent {agent.id}: {e}")
 
     # Step 3: Market Update - adjust prices based on utilization
     MarketManager.update_prices(session)
@@ -138,11 +148,7 @@ async def run_system_loop(session: Session, nc=None):
         )
 
     # NEW: Step 5: Death Check - mark agents with no credits as DEAD
-    dead_agents = (
-        session.query(Agent)
-        .filter(Agent.credit_balance <= 0, Agent.status == AgentStatus.ALIVE)
-        .all()
-    )
+    dead_agents = session.query(Agent).filter(Agent.credit_balance <= 0, Agent.status == AgentStatus.ALIVE).all()
     for agent in dead_agents:
         print(f"Agent {agent.id} has run out of credits and died.")
         agent.status = AgentStatus.DEAD

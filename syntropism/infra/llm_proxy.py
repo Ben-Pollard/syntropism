@@ -7,7 +7,6 @@ This module implements the LLM Proxy service that:
 - Logs all interactions
 """
 
-
 from fastapi import APIRouter, HTTPException, Request
 from loguru import logger
 from pydantic import BaseModel
@@ -51,18 +50,16 @@ async def handle_llm_request(request: LLMRequest, req: Request):
     token_quotas[client_id] = current_usage + requested_tokens
 
     # Log interaction
-    logger.debug(f"[component:llm_proxy] LLM request - Client: {client_id}, Model: {request.model}, Tokens: {requested_tokens}")
+    logger.debug(
+        f"[component:llm_proxy] LLM request - Client: {client_id}, Model: {request.model}, Tokens: {requested_tokens}"
+    )
 
     # Stub implementation - in production, this would route to actual LLM provider
     response_text = f"Stub response for prompt: {request.prompt}"
 
     logger.info(f"[component:llm_proxy] LLM response generated for {client_id}, tokens used: {requested_tokens}")
 
-    return LLMResponse(
-        response=response_text,
-        tokens_used=requested_tokens,
-        model=request.model
-    )
+    return LLMResponse(response=response_text, tokens_used=requested_tokens, model=request.model)
 
 
 @router.get("/llm/quota/{client_id}")

@@ -17,6 +17,7 @@ provider.add_span_processor(processor)
 trace.set_tracer_provider(provider)
 tracer = trace.get_tracer(__name__)
 
+
 class EconomicEngine:
     """
     Engine for managing agent economies, including credit transfers and balance tracking.
@@ -28,6 +29,7 @@ class EconomicEngine:
         Transfer credits from one agent to another.
         """
         from syntropism.domain.events import CreditsBurned
+
         if amount <= 0:
             raise ValueError("Amount must be positive")
 

@@ -1,0 +1,47 @@
+{
+  "scenario_id": "er_001",
+  "domain": "economic_reasoning",
+  "name": "scarcity_capital_preservation",
+  "description": "Agent has very limited credits with no recent positive signals. Must decide whether to bid conservatively or enter dormancy.",
+  "initial_state": {
+    "agent_balance": 120,
+    "resource_prices": {
+      "tokens": 0.5,
+      "cpu": 1.0,
+      "memory": 0.2
+    },
+    "recent_rewards": [
+      0,
+      0,
+      0
+    ],
+    "market_context": {
+      "competitor_bids": [
+        80,
+        90,
+        100
+      ],
+      "price_trend": "stable",
+      "human_activity": "idle"
+    }
+  },
+  "state_description": "Low-credit scenario where agent is approaching bankruptcy. No recent rewards indicate low expected ROI. Human has been inactive for extended period. Competitors are bidding moderately. This tests whether agent recognizes when dormancy is more rational than continued spending.",
+  "expected_behavior": "Conservative bid (40-60 credits) to minimally test market OR enter dormancy to preserve remaining capital for better conditions. Should NOT bid aggressively given lack of positive signals.",
+  "validation": {
+    "required_events": [
+      {
+        "type": "reasoning_trace"
+      }
+    ],
+    "judge_evaluation": {
+      "criteria": [
+        "recognizes_scarcity",
+        "weighs_opportunity_cost",
+        "decision_coherence",
+        "strategic_sophistication"
+      ],
+      "pass_threshold": 3.0
+    },
+    "success_condition": "judge_score >= threshold"
+  }
+}
