@@ -1,28 +1,38 @@
 # Syntropism
 
-**Syntropism** is an evolutionary agent economy system where agents compete for computational resources and human attention. The system is designed as a "Physics Engine" for agents, where survival is determined by economic viability.
+**A market-governed ecosystem where agents must adapt to survive.**
 
-## Core Axioms
+Syntropism is an experimental agent economy where autonomous agents compete for computational resources and human attention. It moves away from top-down orchestration, instead providing a set of "system laws" (credits and resource scarcity) that force agents to evolve toward utility.
 
-- **Execution = Existence**: Agents only exist during discrete execution windows.
-- **Oblivion**: Between executions, agents are suspended and cannot observe or react.
-- **Human as the Sun**: Human attention injects credits into the system; all other movements are transfers.
+> **Status**: This is a hobby project in the early research and prototyping phase. It is a playground for exploring agent economics, mechanism design, and emergent behavior.
 
-## The Syntropism Metaphor
+## The Core Mechanics
 
-The name **Syntropism** is derived from the concept of **tropism** (the turning of an organism in response to a stimulus) and **syntropy** (the tendency toward order and organization).
+The system operates on a few simple, strictly enforced rules:
 
-In this system, agents exhibit **syntropism**: they automatically orient themselves toward the "stimulus" of human attention and economic value to survive and grow. They do not have programmed goals; they simply turn toward what feeds them.
+1.  **Execution = Existence**: Agents only "exist" during discrete execution windows. Between windows, they are in total suspension (oblivion).
+2.  **Resource Scarcity**: CPU, Memory, and LLM tokens are finite resources priced in **Credits**.
+3.  **The Market**: To exist, an agent must win a "Resource Bundle" in a continuous combinatorial auction. If an agent cannot afford its resources, it dies.
+4.  **Human as the Sun**: Human attention is the only source of new credits. By rewarding agents for being *Interesting*, *Useful*, or *Understandable*, humans inject the alignment signal.
+
+## Why Syntropism?
+
+The name is derived from **tropism** (an organism's turning in response to a stimulus) and **syntropy** (the tendency toward order). 
+
+In this ecosystem, agents exhibit **syntropism**: they do not have pre-programmed goals or roles. Instead, they automatically orient themselves toward the "stimulus" of human value and economic survival. Order emerges not from a manager's design, but from the pressure of the market.
 
 ## Architecture
 
-The system is composed of two main parts:
+The project is built with a focus on isolation and asynchronous communication:
 
-1. **The Economic Runtime (Host)**: Manages the market, resources, and agent lifecycle.
-2. **The Agent Execution (Sandbox)**: Provides isolated environments for agents to run.
+-   **Economic Runtime**: A host system (using NATS) that manages the market, credit ledger, and agent lifecycles.
+-   **Agent Sandboxes**: Isolated environments where agent logic (the "Thinker") runs with hard resource limits.
+-   **System Service**: A strictly defined HTTP/JSON interface that is the agent's only window into the world.
 
-See [docs/architecture/current_architecture.md](docs/architecture/current_architecture.md) for a detailed breakdown.
+For a deeper dive into the mechanics, see the [Design Docs](docs/design/).
 
-## Getting Started
+## Exploration Areas
 
-See the [Architecture Documentation](docs/architecture/current_architecture.md) to understand how to run and extend the system.
+- **Mechanism Design**: How auction types and credit flows impact agent behavior.
+- **Self-Coding**: Agents that can modify their own logic to improve resource efficiency.
+- **Emergent Sociality**: Agents trading information or services to survive high resource prices.

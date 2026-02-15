@@ -1,6 +1,6 @@
 - [x] Prepare communication architecture for benchmarking and observability
 - [x] Benchmark runner
-- [ ] Benchmark development
+- [x] Benchmark development
     - [x] Ensure resource units make sense
     - [x] Extract benchmark from docs into individual files to assist coding assistant reasoning on single benchmark items
     - [x] Benchmark constructor
