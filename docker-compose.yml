@@ -17,6 +17,16 @@ services:
     ports:
       - "4317:4317"
       - "4318:4318"
+    depends_on:
+      - phoenix
+
+  phoenix:
+    image: arizephoenix/phoenix:latest
+    ports:
+      - "6006:6006"
+    environment:
+      - PHOENIX_PORT=6006
+      - PHOENIX_HOST=0.0.0.0
 
 volumes:
   nats_data:

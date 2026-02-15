@@ -5,12 +5,12 @@ import time
 import pytest
 
 
-def is_nats_ready(host="localhost", port=4222):
-    """Check if NATS is responding on the given port."""
+def is_service_ready(host="localhost", port=4222):
+    """Check if a service is responding on the given port."""
     try:
         with socket.create_connection((host, port), timeout=1):
             return True
-    except TimeoutError, ConnectionRefusedError:
+    except (TimeoutError, ConnectionRefusedError):
         return False
 
 
@@ -23,10 +23,10 @@ def nats_server():
     nats_url = "nats://localhost:4222"
 
     # Check if NATS is already running
-    if not is_nats_ready():
+    if not is_service_ready(port=4222):
         print("\nStarting NATS via docker-compose...")
         subprocess.run(
-            ["docker", "compose", "-f", "docker-compose.nats.yml", "up", "-d", "nats"],
+            ["docker", "compose", "up", "-d", "nats"],
             check=True,
             capture_output=True,
         )
@@ -35,7 +35,7 @@ def nats_server():
         max_retries = 10
         ready = False
         for i in range(max_retries):
-            if is_nats_ready():
+            if is_service_ready(port=4222):
                 ready = True
                 break
             print(f"Waiting for NATS... (attempt {i + 1}/{max_retries})")
@@ -46,6 +46,32 @@ def nats_server():
 
     yield nats_url
 
-    # We leave NATS running to avoid the overhead of restarting it for every test run,
-    # but you could add cleanup here if desired:
-    # subprocess.run(["docker-compose", "-f", "docker-compose.nats.yml", "stop", "nats"])
+
+@pytest.fixture(scope="session", autouse=True)
+def otel_collector():
+    """
+    Fixture to ensure OTel Collector and Phoenix are running.
+    """
+    # Check if OTel Collector is already running (default port 4317)
+    if not is_service_ready(port=4317):
+        print("\nStarting OTel Collector and Phoenix via docker-compose...")
+        subprocess.run(
+            ["docker", "compose", "up", "-d", "otel-collector", "phoenix"],
+            check=True,
+            capture_output=True,
+        )
+
+        # Wait for Collector to be ready
+        max_retries = 10
+        ready = False
+        for i in range(max_retries):
+            if is_service_ready(port=4317):
+                ready = True
+                break
+            print(f"Waiting for OTel Collector... (attempt {i + 1}/{max_retries})")
+            time.sleep(1)
+
+        if not ready:
+            print("Warning: OTel Collector failed to start. Tests may be slow due to timeouts.")
+
+    yield

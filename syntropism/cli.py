@@ -9,6 +9,7 @@ This module initializes the system and runs the main control loop that:
 4. Bootstraps the system if no completed bids exist
 """
 
+import asyncio
 import os
 import sys
 import threading
@@ -163,7 +164,6 @@ def main():
             bootstrap_genesis_execution(session)
 
         # Run the main system loop
-        import time
 
         from syntropism.api.service import app
 
@@ -177,16 +177,19 @@ def main():
         api_thread.start()
         print("API Server started on port 8000.")
 
-        while True:
-            print("\n--- Starting System Loop ---")
-            # Refresh session to ensure we have latest state from DB
-            session.expire_all()
-            run_system_loop(session)
-            print("--- System Loop Complete ---")
+        async def run_loop():
+            while True:
+                print("\n--- Starting System Loop ---")
+                # Refresh session to ensure we have latest state from DB
+                session.expire_all()
+                await run_system_loop(session)
+                print("--- System Loop Complete ---")
 
-            if not continuous:
-                break
-            time.sleep(5)
+                if not continuous:
+                    break
+                await asyncio.sleep(5)
+
+        asyncio.run(run_loop())
 
     finally:
         session.close()

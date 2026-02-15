@@ -1,56 +1,74 @@
-# Change Requirements: Market & Benchmark Alignment
+# Change Requirements: Observability & Behavioral Tracing
 
-This document translates the agreed architectural direction into actionable technical requirements for aligning the market dynamics and benchmark system.
+This document outlines the technical requirements for implementing the agreed observability stack, focusing on Arize Phoenix, OpenTelemetry (OTel), and NATS JetStream.
 
-## 1. Event Instrumentation Requirements
+## 1. Infrastructure Consolidation
 
-### 1.1 Unified Event Schema
--   **Requirement**: All system events must conform to the base schema defined in `docs/design/10_agent_benchmark.md`.
--   **Implementation**: Create a Pydantic-based `Event` model in `syntropism/domain/models.py` or a new `syntropism/domain/events.py`.
+### 1.1 Unified Docker Compose
+- **Requirement**: Consolidate all infrastructure dependencies into a single `docker-compose.yml` file.
+- **Implementation**:
+    - Rename `docker-compose.nats.yml` to `docker-compose.yml`.
+    - Ensure `nats`, `otel-collector`, and `phoenix` services are present.
+    - Configure `phoenix` to use port `6006`.
+    - Configure `otel-collector` to depend on `phoenix`.
+- **Verification**: `docker compose up -d` starts all three services without errors.
 
-### 1.2 Economic Events
--   **Requirement**: `EconomicEngine` must emit `credits_transferred` events for every transaction.
--   **Requirement**: `EconomicEngine` must emit `balance_queried` events (optional, for audit).
--   **Requirement**: Implement a "Burn" account or mechanism where credits spent on resources are explicitly removed from circulation and recorded.
+### 1.2 OTel Collector Optimization
+- **Requirement**: Configure the OTel Collector for production-like reliability and Phoenix compatibility.
+- **Implementation**:
+    - Update `otel-collector-config.yaml`.
+    - Add `memory_limiter` processor to prevent OOM (limit: 80%, spike: 25%, check_interval: 5s).
+    - Add `batch` processor to optimize export (timeout: 10s, send_batch_size: 512).
+    - Ensure `otlp/phoenix` exporter points to `phoenix:6006` with `insecure: true`.
+- **Verification**: Collector logs show successful connection to Phoenix and no processor drops.
 
-### 1.3 Market & Scheduler Events
--   **Requirement**: `AllocationScheduler` must emit `bid_placed`, `bid_rejected`, and `resources_allocated` events.
--   **Requirement**: `MarketManager` must emit `price_update` events whenever prices change due to utilization shifts.
+## 2. Distributed Trace Continuity
 
-## 2. Resource Market Requirements
+### 2.1 NATS Header Propagation
+- **Requirement**: Implement W3C Trace Context propagation across all NATS-based service communication.
+- **Implementation**:
+    - **Inject**: In NATS publishers (e.g., `nc.request`, `nc.publish`), inject the current span context into NATS headers using the `W3CTraceContextPropagator`.
+    - **Extract**: In NATS subscribers (e.g., `balance_handler`, `spawn_handler`), extract the context from `msg.headers` before starting a new span.
+    - **Fallback**: If no header is present, start a new root span.
+- **Modified Files**:
+    - `syntropism/domain/economy.py`
+    - `syntropism/core/genesis.py`
+    - `syntropism/infra/mcp_gateway.py`
+- **Verification**: A single trace ID is shared between a requester and a responder in Arize Phoenix.
 
-### 2.1 Time-Based Allocation
--   **Requirement**: Update `ResourceBundle` and `Bid` models to include a `duration_minutes` or `end_timestamp`.
--   **Requirement**: `AllocationScheduler` must calculate availability based on *current* utilization of the total system capacity over the requested duration.
--   **Requirement**: Implement "All-or-Nothing" bundle allocation logic.
+## 3. OpenInference Standardization
 
-### 2.2 Price Discovery Logic
--   **Requirement**: Refactor `MarketManager.update_prices` to reflect supply/demand dynamics. Price should be a function of `(Total_Capacity - Current_Utilization)` and the volume of active bids.
--   **Requirement**: Implement "Attention" as a first-class resource with a fixed supply of 1.0.
+### 3.1 LLM Instrumentation
+- **Requirement**: Standardize LLM request/response tracing using OpenInference semantic conventions.
+- **Implementation**:
+    - Update `syntropism/infra/llm_proxy.py`.
+    - Wrap LLM calls in a span with `span_kind="LLM"`.
+    - Set OpenInference attributes:
+        - `llm.model_name`
+        - `llm.prompts.0.content`
+        - `llm.output_messages.0.content`
+        - `llm.token_count.total`
+- **Verification**: Arize Phoenix displays the LLM call with the "LLM" icon and correctly parses prompt/response.
 
-### 2.3 LLM Spend Limits
--   **Requirement**: Add a `max_llm_spend_per_minute` configuration to the system.
--   **Requirement**: The `MarketManager` must treat this spend limit as the "100% utilization" point for the `tokens` resource.
-
-## 3. Benchmark System Requirements
-
-### 3.1 Scenario Definition Alignment
--   **Requirement**: Populate `syntropism/benchmarks/data/` JSON files with `required_event_sequence` that matches the new system event taxonomy.
--   **Requirement**: Scenarios must include realistic `initial_state` (balances, prices) and `validation` rules (constraints on event data).
-
-### 3.2 Runner Expansion
--   **Requirement**: Update `BenchmarkRunner` to handle complex event matching, including:
-    -   Partial data matching (e.g., "amount > 100").
-    -   Temporal constraints (e.g., "event B must occur within 5s of event A").
-    -   Source verification (e.g., "must be from 'system'").
+### 3.2 Tool & Task Instrumentation
+- **Requirement**: Instrument tool calls and agent tasks using OpenInference conventions.
+- **Implementation**:
+    - Update `syntropism/infra/mcp_gateway.py` and agent loop.
+    - Use `span_kind="TOOL"` for MCP tool invocations.
+    - Use `span_kind="CHAIN"` or `span_kind="AGENT"` for high-level agent reasoning loops.
+    - Set `tool.name` and `tool.parameters` attributes.
+- **Verification**: Trace visualization shows a clear hierarchy of Agent -> Chain -> LLM/Tool.
 
 ## 4. Verification Criteria
 
--   **Unit Tests**: All new event emission logic must be covered by unit tests verifying NATS message content.
--   **Integration Tests**: A "Market Cycle" test must demonstrate:
-    1.  Agent places bid.
-    2.  Scheduler allocates bundle.
-    3.  Economy burns credits.
-    4.  Market updates price.
-    5.  All 4 events are captured by a NATS subscriber.
--   **Benchmark Pass**: The `BenchmarkRunner` must successfully pass a basic `economic_reasoning` scenario using the live event stream.
+### 4.1 Trace Completeness
+- **Test**: Trigger an agent spawn request via NATS.
+- **Success**: A single trace in Phoenix shows:
+    1. `evolution.spawn` (NATS Request)
+    2. `spawn_handler` (NATS Subscriber)
+    3. `_create_agent_with_workspace` (Internal Function)
+    4. Database operations (SQLAlchemy spans)
+
+### 4.2 OpenInference Compliance
+- **Test**: Execute a benchmark scenario that involves LLM calls.
+- **Success**: Phoenix "Attributes" tab for the LLM span contains all required `llm.*` fields, and the "Evaluation" tab is ready for Phoenix Evals.

@@ -7,10 +7,14 @@
         - [x] Test that benchmark item files can be composed into a single file
     - [x] Ensure necessary events are defined in the system
 - [ ] Observability stack
-    - [ ] traces -> jaeger
-        - [ ] define what the traces/spans/sessions primitives mean in this system
-    - [ ] metrics -> prometheus
-    - [ ] viz with grafana
+    - [ ] System
+        - [ ] traces -> jaeger
+        - [ ] metrics -> prometheus
+        - [ ] viz with grafana
+    - [ ] Agents
+        - [x] otel collector, openinference schema
+        - [x] arize phoenix sink
+        - [ ] test
 - [ ] Agent bootstrapping & benchmarking docs
     - [ ] Context design: tool availability, access to documentation, coding best practices, ai domain knowledge.
     - [ ] Coding ability

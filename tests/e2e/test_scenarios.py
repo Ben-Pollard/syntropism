@@ -33,13 +33,23 @@ def server(db_path, server_port):
 
     from syntropism.api.service import app
 
+    config = uvicorn.Config(app, host="0.0.0.0", port=server_port, log_level="error")
+    server = uvicorn.Server(config)
+
     def run_server():
-        uvicorn.run(app, host="0.0.0.0", port=server_port, log_level="error")
+        server.run()
 
     thread = threading.Thread(target=run_server, daemon=True)
     thread.start()
+
+    # Wait for server to be ready
     time.sleep(2)
+
     yield
+
+    # Shutdown server
+    server.should_exit = True
+    thread.join(timeout=5)
 
     if os.path.exists(db_path):
         try:

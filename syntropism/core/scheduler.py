@@ -1,7 +1,11 @@
 from sqlalchemy.orm import Session
 
+from syntropism.core.observability import inject_context, setup_tracing
 from syntropism.domain.market import ResourceType
 from syntropism.domain.models import Agent, Bid, BidStatus, Execution, MarketState, ResourceBundle
+
+# Initialize OTEL
+tracer = setup_tracing("scheduler")
 
 
 class AllocationScheduler:
@@ -28,7 +32,9 @@ class AllocationScheduler:
 
         if nc:
             event = BidPlaced(agent_id=agent_id, amount=amount, resource_bundle_id=bundle_id)
-            await nc.publish("system.market.bid_placed", event.model_dump_json().encode())
+            headers = {}
+            inject_context(headers)
+            await nc.publish("system.market.bid_placed", event.model_dump_json().encode(), headers=headers)
 
         return bid
 
@@ -58,11 +64,12 @@ class AllocationScheduler:
             bundle = bid.resource_bundle
 
             # Check all resource requirements (Capacity-Based)
+            # Fallback to old fields if new ones are not set (for backward compatibility)
             requirements = {
-                ResourceType.CPU.value: bundle.cpu_percent,
-                ResourceType.MEMORY.value: bundle.memory_percent,
-                ResourceType.TOKENS.value: bundle.tokens_percent,
-                ResourceType.ATTENTION.value: bundle.attention_percent,
+                ResourceType.CPU.value: bundle.cpu_percent or (bundle.cpu_seconds / 10.0 if bundle.cpu_seconds else 0.0),
+                ResourceType.MEMORY.value: bundle.memory_percent or (bundle.memory_mb / 1024.0 if bundle.memory_mb else 0.0),
+                ResourceType.TOKENS.value: bundle.tokens_percent or (bundle.tokens / 1000000.0 if bundle.tokens else 0.0),
+                ResourceType.ATTENTION.value: bundle.attention_percent or (bundle.attention_share or 0.0),
             }
 
             can_allocate = True
@@ -101,7 +108,9 @@ class AllocationScheduler:
                     reject_event = BidRejected(
                         agent_id=bid.from_agent_id, reason="Insufficient supply or credits during allocation cycle"
                     )
-                    await nc.publish("system.market.bid_rejected", reject_event.model_dump_json().encode())
+                    headers = {}
+                    inject_context(headers)
+                    await nc.publish("system.market.bid_rejected", reject_event.model_dump_json().encode(), headers=headers)
 
             # Emit event
             if nc:
@@ -112,7 +121,9 @@ class AllocationScheduler:
                     status=bid.status.value,
                     resource_bundle_id=bid.resource_bundle_id,
                 )
-                await nc.publish("system.market.bid_processed", event.model_dump_json().encode())
+                headers = {}
+                inject_context(headers)
+                await nc.publish("system.market.bid_processed", event.model_dump_json().encode(), headers=headers)
 
         # Update MarketState utilization and price in DB
         for ms in market_states_objs:
@@ -130,6 +141,8 @@ class AllocationScheduler:
                         new_price=ms.current_market_price,
                         utilization=ms.current_utilization,
                     )
-                    await nc.publish("system.market.price_discovered", event.model_dump_json().encode())
+                    headers = {}
+                    inject_context(headers)
+                    await nc.publish("system.market.price_discovered", event.model_dump_json().encode(), headers=headers)
 
         session.commit()

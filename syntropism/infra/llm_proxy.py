@@ -9,7 +9,13 @@ This module implements the LLM Proxy service that:
 
 from fastapi import APIRouter, HTTPException, Request
 from loguru import logger
+from opentelemetry import trace
 from pydantic import BaseModel
+
+from syntropism.core.observability import extract_context, setup_tracing
+
+# Initialize OTEL
+tracer = setup_tracing("llm-proxy")
 
 router = APIRouter()
 
@@ -34,32 +40,46 @@ async def handle_llm_request(request: LLMRequest, req: Request):
     """
     Handle LLM proxy requests with token quota enforcement and logging.
     """
-    client_id = req.client.host if req.client else "unknown"
+    context = extract_context(dict(req.headers))
+    with tracer.start_as_current_span("llm_request", context=context) as span:
+        client_id = req.client.host if req.client else "unknown"
 
-    logger.info(f"[component:llm_proxy] LLM request received from {client_id} for model {request.model}")
+        logger.info(f"[component:llm_proxy] LLM request received from {client_id} for model {request.model}")
 
-    # Check and enforce token quotas
-    current_usage = token_quotas.get(client_id, 0)
-    requested_tokens = request.max_tokens or 1000
+        # OpenInference LLM Instrumentation
+        span.set_attribute("openinference.span.kind", "LLM")
+        span.set_attribute("llm.model_name", request.model)
+        span.set_attribute("llm.input_messages.0.message.role", "user")
+        span.set_attribute("llm.input_messages.0.message.content", request.prompt)
 
-    if current_usage + requested_tokens > 10000:  # Example quota limit
-        logger.warning(f"[component:llm_proxy] Token quota exceeded for client {client_id}")
-        raise HTTPException(status_code=429, detail="Token quota exceeded")
+        # Check and enforce token quotas
+        current_usage = token_quotas.get(client_id, 0)
+        requested_tokens = request.max_tokens or 1000
 
-    # Update token usage
-    token_quotas[client_id] = current_usage + requested_tokens
+        if current_usage + requested_tokens > 10000:  # Example quota limit
+            logger.warning(f"[component:llm_proxy] Token quota exceeded for client {client_id}")
+            span.set_status(trace.Status(trace.StatusCode.ERROR, "Token quota exceeded"))
+            raise HTTPException(status_code=429, detail="Token quota exceeded")
 
-    # Log interaction
-    logger.debug(
-        f"[component:llm_proxy] LLM request - Client: {client_id}, Model: {request.model}, Tokens: {requested_tokens}"
-    )
+        # Update token usage
+        token_quotas[client_id] = current_usage + requested_tokens
 
-    # Stub implementation - in production, this would route to actual LLM provider
-    response_text = f"Stub response for prompt: {request.prompt}"
+        # Log interaction
+        logger.debug(
+            f"[component:llm_proxy] LLM request - Client: {client_id}, Model: {request.model}, Tokens: {requested_tokens}"
+        )
 
-    logger.info(f"[component:llm_proxy] LLM response generated for {client_id}, tokens used: {requested_tokens}")
+        # Stub implementation - in production, this would route to actual LLM provider
+        response_text = f"Stub response for prompt: {request.prompt}"
 
-    return LLMResponse(response=response_text, tokens_used=requested_tokens, model=request.model)
+        # OpenInference Output Instrumentation
+        span.set_attribute("llm.output_messages.0.message.role", "assistant")
+        span.set_attribute("llm.output_messages.0.message.content", response_text)
+        span.set_attribute("llm.token_count.total", requested_tokens)
+
+        logger.info(f"[component:llm_proxy] LLM response generated for {client_id}, tokens used: {requested_tokens}")
+
+        return LLMResponse(response=response_text, tokens_used=requested_tokens, model=request.model)
 
 
 @router.get("/llm/quota/{client_id}")

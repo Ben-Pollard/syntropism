@@ -1,35 +1,41 @@
-# Future Architectural Direction: Market Alignment & Event-Driven Benchmarking
+# Future Architectural Direction: Observability & Evaluation
 
-This document formalizes the agreed architectural direction for aligning the system's market dynamics and event emission with the benchmark requirements.
+## 1. Vision
+To establish a world-class observability and evaluation platform for agentic systems, moving from simple logging to **Behavioral Tracing** and **Automated Evaluation**.
 
-## 1. Core Principles
+## 2. Core Pillars
 
-1.  **Market-Driven Price Discovery**: Prices are not set by a central authority but emerge from the interaction of system capacity and agent needs. The `MarketManager` facilitates discovery rather than dictating price.
-2.  **Physics of Scarcity**: Resources (CPU, Memory, Tokens, Attention) are finite, strictly enforced, and priced per unit time.
-3.  **Event-Driven Truth**: The system's state changes are communicated via an immutable, structured event stream. This stream is the "Source of Truth" for the `BenchmarkRunner`.
-4.  **System-First Event Design**: Event structures are derived from best practices and existing system services. The benchmark definitions must align with these system-emitted events, not vice versa.
+### A. Unified Dependency Stack
+- **Action**: Consolidate all infrastructure (NATS, OTel Collector, Arize Phoenix) into a single `docker-compose.yml`.
+- **Rationale**: Simplifies developer onboarding and ensures environment parity.
 
-## 2. Key Decisions
+### B. OpenInference Standardization
+- **Action**: Adopt OpenInference semantic conventions for all LLM and tool-calling spans.
+- **Rationale**: Enables advanced visualization in Arize Phoenix (e.g., logic trees, cost analysis) and avoids vendor lock-in.
 
-### Decision 1: Refine Resource Allocation to Time-Based Bundles
--   **Direction**: Transition from "one-off" resource purchases to time-based "Resource Bundles" (e.g., 10% CPU for 10 minutes).
--   **Rationale**: Aligns with `docs/design/03_market.md`. Prevents "Partial Existence" and ensures agents have a predictable execution window.
+### C. Distributed Trace Continuity
+- **Action**: Implement W3C Trace Context propagation across NATS headers.
+- **Rationale**: Connects disparate agent actions into a single, coherent trace, essential for debugging asynchronous event-driven loops.
 
-### Decision 2: Implement System-Wide LLM Spend Limits
--   **Direction**: Define a maximum spend per unit time for upstream LLM services.
--   **Rationale**: Places commercial LLM usage into the same "Physical Scarcity" space as CPU and Memory.
+### D. Evaluation-Led Development
+- **Action**: Integrate Phoenix Evals into the CI/CD and benchmarking pipeline.
+- **Rationale**: Augments manual log inspection with automated "LLM-as-a-Judge" and procedural scoring for hallucination, relevancy, and safety.
 
-### Decision 3: Standardize Event Taxonomy based on System Services
--   **Direction**: Define a unified event schema and taxonomy (e.g., `bid_placed`, `resources_allocated`, `credits_transferred`) based on the actual capabilities of the `EconomicEngine`, `MarketManager`, and `Scheduler`.
--   **Rationale**: Ensures the benchmark reflects the actual system dynamics. Identifies gaps where the benchmark requires events the system cannot yet emit.
+## 3. Implementation Roadmap
 
-### Decision 4: NATS-First Event Emission
--   **Direction**: All core domain services (Economy, Market, Scheduler) must emit events to NATS as their primary means of notifying the system of state changes.
--   **Rationale**: Decouples the `BenchmarkRunner` and other observability tools from the internal implementation details of the services.
+1.  **Phase 1: Infrastructure (Immediate)**
+    - Finalize `docker-compose.yml` with Arize Phoenix and OTel Collector.
+    - Configure OTel Collector with `batch` and `memory_limiter` processors.
 
-## 3. Success Criteria
+2.  **Phase 2: Instrumentation (Short-term)**
+    - Create a NATS wrapper for trace propagation.
+    - Instrument `LLMProxy` and `MCPGateway` with OpenInference.
 
--   **Dynamic Pricing**: Market prices fluctuate based on actual utilization and agent bidding behavior.
--   **Hard Enforcement**: Agents are terminated or denied service if they exceed their allocated time-based bundle.
--   **Benchmark Alignment**: The `BenchmarkRunner` can successfully validate agent behavior using the standardized system event stream.
--   **Traceable Economy**: Every credit transfer and resource allocation is visible as a discrete event in the NATS stream.
+3.  **Phase 3: Evaluation (Medium-term)**
+    - Define "Golden Sets" from production traces.
+    - Implement automated experiments in the `BenchmarkRunner`.
+
+## 4. Agreement
+*This document represents the agreed-upon direction for the Syntropism observability stack.*
+
+**Status**: Pending Approval

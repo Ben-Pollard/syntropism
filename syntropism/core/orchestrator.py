@@ -1,14 +1,19 @@
 import json
 import os
+import sys
 from datetime import UTC, datetime
 
 from sqlalchemy.orm import Session
 
+from syntropism.core.observability import inject_context, setup_tracing
 from syntropism.core.sandbox import ExecutionSandbox
 from syntropism.core.scheduler import AllocationScheduler
 from syntropism.domain.attention import AttentionManager
 from syntropism.domain.market import MarketManager
 from syntropism.domain.models import Agent, AgentStatus, Bid, BidStatus, Execution, Workspace
+
+# Initialize OTEL
+tracer = setup_tracing("orchestrator")
 
 
 async def run_system_loop(session: Session, nc=None):
@@ -30,8 +35,12 @@ async def run_system_loop(session: Session, nc=None):
     winning_bids = session.query(Bid).filter_by(status=BidStatus.WINNING).all()
 
     for bid in winning_bids:
-        agent = bid.agent
-        workspace = session.query(Workspace).filter_by(agent_id=agent.id).first()
+        with tracer.start_as_current_span("agent_execution") as span:
+            agent = bid.agent
+            span.set_attribute("openinference.span.kind", "AGENT")
+            span.set_attribute("agent.id", agent.id)
+
+            workspace = session.query(Workspace).filter_by(agent_id=agent.id).first()
 
         if not workspace:
             continue
@@ -61,7 +70,9 @@ async def run_system_loop(session: Session, nc=None):
             event = ExecutionStarted(
                 execution_id=bid.execution_id, agent_id=agent.id, resource_bundle_id=bid.resource_bundle_id
             )
-            await nc.publish("system.execution.started", event.model_dump_json().encode())
+            headers = {}
+            inject_context(headers)
+            await nc.publish("system.execution.started", event.model_dump_json().encode(), headers=headers)
 
         sandbox = ExecutionSandbox(debug=debug_mode)
         exit_code, logs = sandbox.run_agent(
@@ -95,7 +106,9 @@ async def run_system_loop(session: Session, nc=None):
                 exit_code=exit_code,
                 reason=logs[:100] if logs else "success",
             )
-            await nc.publish("system.execution.terminated", event.model_dump_json().encode())
+            headers = {}
+            inject_context(headers)
+            await nc.publish("system.execution.terminated", event.model_dump_json().encode(), headers=headers)
 
         # NEW: Capture ReasoningTrace if reasoning.txt exists in workspace
         reasoning_path = os.path.join(workspace_path, "reasoning.txt")
@@ -105,8 +118,11 @@ async def run_system_loop(session: Session, nc=None):
                     reasoning_content = f.read()
                 if nc:
                     trace_event = ReasoningTrace(agent_id=agent.id, content=reasoning_content)
-                    await nc.publish("system.agent.reasoning", trace_event.model_dump_json().encode())
+                    headers = {}
+                    inject_context(headers)
+                    await nc.publish("system.agent.reasoning", trace_event.model_dump_json().encode(), headers=headers)
             except Exception as e:
+                span.record_exception(e)
                 print(f"Error reading reasoning.txt for agent {agent.id}: {e}")
 
     # Step 3: Market Update - adjust prices based on utilization
@@ -135,7 +151,11 @@ async def run_system_loop(session: Session, nc=None):
                     if all(0 <= s <= 10 for s in [interesting, useful, understandable]):
                         break
                 print("Invalid input. Please enter three numbers between 0 and 10.")
-            except ValueError:
+            except (ValueError, EOFError):
+                if isinstance(sys.stdin, type(None)) or not sys.stdin.isatty():
+                    print("Non-interactive environment detected, using default scores (5 5 5).")
+                    interesting, useful, understandable = 5.0, 5.0, 5.0
+                    break
                 print("Invalid input. Please enter numbers between 0 and 10.")
 
         # Reward the prompt

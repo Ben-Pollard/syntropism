@@ -6,8 +6,12 @@ import uuid
 import nats
 from sqlalchemy.orm import Session
 
+from syntropism.core.observability import extract_context, setup_tracing
 from syntropism.domain.models import Agent, AgentStatus, Transaction, Workspace
 from syntropism.infra.database import SessionLocal
+
+# Initialize OTEL
+tracer = setup_tracing("evolution-service")
 
 SPAWN_COST = 10.0
 
@@ -141,18 +145,21 @@ class EvolutionManager:
         nc = await nats.connect(nats_url, connect_timeout=2)
 
         async def spawn_handler(msg):
-            data = json.loads(msg.data)
-            parent_id = data.get("parent_id")
-            initial_credits = data.get("initial_credits", 50.0)
-            payload = data.get("payload", {})
+            context = extract_context(msg.headers)
+            with tracer.start_as_current_span("spawn_handler", context=context) as span:
+                data = json.loads(msg.data)
+                parent_id = data.get("parent_id")
+                initial_credits = data.get("initial_credits", 50.0)
+                payload = data.get("payload", {})
 
-            with SessionLocal() as session:
-                try:
-                    child = spawn_child_agent(session, parent_id, initial_credits, payload)
-                    response = {"status": "success", "child_id": child.id, "workspace_id": child.workspace_id}
-                    await msg.respond(json.dumps(response).encode())
-                except Exception as e:
-                    await msg.respond(json.dumps({"status": "error", "message": str(e)}).encode())
+                with SessionLocal() as session:
+                    try:
+                        child = spawn_child_agent(session, parent_id, initial_credits, payload)
+                        response = {"status": "success", "child_id": child.id, "workspace_id": child.workspace_id}
+                        await msg.respond(json.dumps(response).encode())
+                    except Exception as e:
+                        span.record_exception(e)
+                        await msg.respond(json.dumps({"status": "error", "message": str(e)}).encode())
 
         await nc.subscribe("evolution.spawn", cb=spawn_handler)
         return nc

@@ -1,21 +1,14 @@
 import json
 
 import nats
-from opentelemetry import trace
-from opentelemetry.exporter.otlp.proto.grpc.trace_exporter import OTLPSpanExporter
-from opentelemetry.sdk.trace import TracerProvider
-from opentelemetry.sdk.trace.export import BatchSpanProcessor
 from sqlalchemy.orm import Session
 
+from syntropism.core.observability import extract_context, inject_context, setup_tracing
 from syntropism.domain.models import Agent, Transaction
 from syntropism.infra.database import SessionLocal
 
 # Initialize OTEL
-provider = TracerProvider()
-processor = BatchSpanProcessor(OTLPSpanExporter(endpoint="http://localhost:4317", insecure=True))
-provider.add_span_processor(processor)
-trace.set_tracer_provider(provider)
-tracer = trace.get_tracer(__name__)
+tracer = setup_tracing("economy-service")
 
 
 class EconomicEngine:
@@ -62,7 +55,9 @@ class EconomicEngine:
         # Emit event if burning (transfer to system/null)
         if nc and (to_id is None or to_id == "system"):
             event = CreditsBurned(agent_id=from_id, amount=amount, reason=memo)
-            await nc.publish("system.economy.credits_burned", event.model_dump_json().encode())
+            headers = {}
+            inject_context(headers)
+            await nc.publish("system.economy.credits_burned", event.model_dump_json().encode(), headers=headers)
 
     @staticmethod
     def get_balance(session: Session, agent_id: str) -> float:
@@ -90,7 +85,8 @@ class EconomicEngine:
         nc = await nats.connect(nats_url, connect_timeout=2)
 
         async def balance_handler(msg):
-            with tracer.start_as_current_span("balance_handler") as span:
+            context = extract_context(msg.headers)
+            with tracer.start_as_current_span("balance_handler", context=context) as span:
                 subject = msg.subject
                 agent_id = subject.split(".")[-1]
                 span.set_attribute("agent_id", agent_id)

@@ -3,6 +3,7 @@ import os
 
 import docker
 
+from syntropism.core.observability import inject_context
 from syntropism.domain.models import ResourceBundle
 
 # Determine the project root (where syntropism/ is located)
@@ -47,6 +48,13 @@ class ExecutionSandbox:
             "NATS_URL": os.getenv("NATS_URL", "nats://host.docker.internal:4222"),
             "PYTHONPATH": "/system:/workspace:$PYTHONPATH",  # Ensure /system and /workspace are in path
         }
+
+        # Inject trace context into environment
+        trace_headers = {}
+        inject_context(trace_headers)
+        for k, v in trace_headers.items():
+            # Convert headers to env vars (e.g. traceparent -> TRACEPARENT)
+            environment[k.upper()] = v
 
         if runtime_data and "execution_id" in runtime_data:
             environment["EXECUTION_ID"] = str(runtime_data["execution_id"])
